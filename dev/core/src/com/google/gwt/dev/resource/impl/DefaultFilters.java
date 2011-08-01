@@ -84,7 +84,7 @@ public class DefaultFilters {
       if (suffix == null) {
         return true;
       }
-      return path.endsWith(suffix);
+      return path.endsWith(suffix) || (".java".equals(suffix) && path.endsWith(".jribble"));
     }
   }
 

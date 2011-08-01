@@ -279,4 +279,17 @@ public final class Class<T> {
   Class<? super T> getEnumSuperclass() {
     return enumSuperclass;
   }
+
+  // TODO(stephenh) Either remove or implement as manifests are fixed.
+  // https://github.com/scalagwt/scalagwt-gwt/issues/2
+  // https://github.com/scalagwt/scalagwt-gwt/issues/9
+  public Class<?>[] getInterfaces() {
+    // needed for the TypeOracle to load scala-library manifest code
+    throw new RuntimeException("getInterfaces is not supported");
+  }
+
+  public boolean isAssignableFrom(Class<?> cls) {
+    // needed for the TypeOracle to load scala-library manifest code
+    throw new RuntimeException("isAssignableFrom is not supported");
+  }
 }

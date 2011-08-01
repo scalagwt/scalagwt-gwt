@@ -535,7 +535,7 @@ public class JavaToJavaScriptCompiler {
 
     CorrelationFactory correlator =
         options.isSoycExtra() ? RealCorrelationFactory.INSTANCE : DummyCorrelationFactory.INSTANCE;
-    JProgram jprogram = new JProgram(correlator);
+    JProgram jprogram = new JProgram(typeOracle, correlator);
     JsProgram jsProgram = new JsProgram(correlator);
 
     try {

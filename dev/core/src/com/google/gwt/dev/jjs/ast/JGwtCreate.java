@@ -16,6 +16,7 @@
 package com.google.gwt.dev.jjs.ast;
 
 import com.google.gwt.dev.jjs.SourceInfo;
+import com.google.gwt.dev.util.Name.BinaryName;
 import com.google.gwt.dev.util.collect.Lists;
 
 import java.util.ArrayList;
@@ -55,8 +56,7 @@ public class JGwtCreate extends JExpression {
    * Rebinds are always on a source type name.
    */
   public static String nameOf(JType type) {
-    // TODO: replace with BinaryName.toSourceName(type.getName())?
-    return type.getName().replace('$', '.');
+    return BinaryName.toSourceName(type.getName());
   }
 
   static List<String> nameOf(Collection<? extends JType> types) {

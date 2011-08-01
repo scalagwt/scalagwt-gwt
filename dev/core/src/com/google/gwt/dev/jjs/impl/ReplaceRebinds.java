@@ -36,6 +36,7 @@ import com.google.gwt.dev.jjs.ast.JProgram;
 import com.google.gwt.dev.jjs.ast.JReferenceType;
 import com.google.gwt.dev.jjs.ast.JStringLiteral;
 import com.google.gwt.dev.util.JsniRef;
+import com.google.gwt.dev.util.Name.BinaryName;
 import com.google.gwt.dev.util.log.speedtracer.CompilerEventType;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.Event;
@@ -152,7 +153,7 @@ public class ReplaceRebinds {
 
   protected List<JClassType> getAllPossibleRebindResults(JReferenceType type) {
     // Rebinds are always on a source type name.
-    String reqType = type.getName().replace('$', '.');
+    String reqType = BinaryName.toSourceName(type.getName());
     String[] answers;
     try {
       answers = rpo.getAllPossibleRebindAnswers(logger, reqType);

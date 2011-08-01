@@ -103,11 +103,11 @@ public class JdtCompiler {
      * Finds a new compilation unit on-the-fly for the requested type, if there
      * is an alternate mechanism for doing so.
      * 
-     * @param binaryName the binary name of the requested type
+     * @param internalName the internal name of the requested type
      * @return a unit answering the name, or <code>null</code> if no such unit
      *         can be created
      */
-    GeneratedUnit doFindAdditionalType(String binaryName);
+    GeneratedUnit doFindAdditionalType(String internalName);
   }
 
   /**
@@ -290,9 +290,9 @@ public class JdtCompiler {
     }
 
     public NameEnvironmentAnswer findType(char[][] compoundTypeName) {
-      char[] binaryNameChars = CharOperation.concatWith(compoundTypeName, '/');
-      String binaryName = String.valueOf(binaryNameChars);
-      CompiledClass compiledClass = binaryTypes.get(binaryName);
+      char[] internalNameChars = CharOperation.concatWith(compoundTypeName, '/');
+      String internalName = String.valueOf(internalNameChars);
+      CompiledClass compiledClass = binaryTypes.get(internalName);
       try {
         if (compiledClass != null) {
           return compiledClass.getNameEnvironmentAnswer();
@@ -300,11 +300,11 @@ public class JdtCompiler {
       } catch (ClassFormatException ex) {
         // fall back to binary class
       }
-      if (isPackage(binaryName)) {
+      if (isPackage(internalName)) {
         return null;
       }
       if (additionalTypeProviderDelegate != null) {
-        GeneratedUnit unit = additionalTypeProviderDelegate.doFindAdditionalType(binaryName);
+        GeneratedUnit unit = additionalTypeProviderDelegate.doFindAdditionalType(internalName);
         if (unit != null) {
           CompilationUnitBuilder b = CompilationUnitBuilder.create(unit);
           Adapter a = new Adapter(b);
@@ -312,7 +312,7 @@ public class JdtCompiler {
         }
       }
       try {
-        URL resource = getClassLoader().getResource(binaryName + ".class");
+        URL resource = getClassLoader().getResource(internalName + ".class");
         if (resource != null) {
           InputStream openStream = resource.openStream();
           try {
@@ -487,7 +487,7 @@ public class JdtCompiler {
   private AdditionalTypeProviderDelegate additionalTypeProviderDelegate;
 
   /**
-   * Maps dotted binary names to compiled classes.
+   * Maps internal names to compiled classes.
    */
   private final Map<String, CompiledClass> binaryTypes = new HashMap<String, CompiledClass>();
 
@@ -509,6 +509,12 @@ public class JdtCompiler {
   public void addCompiledUnit(CompilationUnit unit) {
     addPackages(Shared.getPackageName(unit.getTypeName()).replace('.', '/'));
     addBinaryTypes(unit.getCompiledClasses());
+  }
+
+  // added for jribble to add its CompiledClasses before the JDT compiler is invoked
+  public void addCompiledClass(CompiledClass cc) {
+    addPackages(cc.getPackageName());
+    binaryTypes.put(cc.getInternalName(), cc);
   }
 
   public ArrayList<String> collectApiRefs(final CompilationUnitDeclaration cud) {
@@ -607,7 +613,7 @@ public class JdtCompiler {
       @Override
       protected void onBinaryTypeRef(BinaryTypeBinding referencedType,
           CompilationUnitDeclaration unitOfReferrer, Expression expression) {
-        if (!String.valueOf(referencedType.getFileName()).endsWith(".java")) {
+        if (!Shared.endsWith(referencedType.getFileName(), ".java") && !Shared.endsWith(referencedType.getFileName(), ".jribble")) {
           // ignore binary-only annotations
           return;
         }
@@ -622,7 +628,7 @@ public class JdtCompiler {
 
       private void addReference(ReferenceBinding referencedType) {
         String binaryName = CharOperation.toString(referencedType.compoundName);
-        apiRefs.add(BinaryName.toSourceName(binaryName));
+        apiRefs.add(BinaryName.toInternalName(binaryName));
       }
 
       /**

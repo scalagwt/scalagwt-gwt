@@ -99,6 +99,9 @@ public interface JClassType extends JType, HasAnnotations, HasMetaData {
    */
   JMethod[] getMethods();
 
+  /**
+   * @return the nested simple class name, e.g. {@code Foo.Bar} for {@code foo.Foo$Bar}.
+   */
   String getName();
 
   JClassType getNestedType(String typeName) throws NotFoundException;

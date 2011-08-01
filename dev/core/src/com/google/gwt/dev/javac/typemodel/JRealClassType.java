@@ -71,10 +71,10 @@ public class JRealClassType extends JClassType implements
    * 
    * @param oracle
    * @param declaringPackage
-   * @param enclosingTypeName the fully qualified source name of the enclosing
+   * @param enclosingTypeName the simple source name of the enclosing
    *          class or null if a top-level class - setEnclosingType must be
    *          called later with the proper enclosing type if this is non-null
-   * @param name
+   * @param name the simple source name of the class
    * @param isInterface
    */
   JRealClassType(TypeOracle oracle, JPackage declaringPackage, String enclosingTypeName,
