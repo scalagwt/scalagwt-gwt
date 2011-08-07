@@ -361,9 +361,6 @@ public class JribbleAstBuilder {
     mapper.setSourceMethod(cstr.signature(jrType.name()), method);
   }
 
-  // TODO(grek): This class should be implemented as immutable data structure
-  // but I fail to see how to achieve that without lots of code and not cloning
-  // underlying collections all the time.
   private static final class LocalStack {
     private final Stack<Map<String, JLocal>> varStack = new Stack<Map<String, JLocal>>();
     private final Map<String, JParameter> params;
@@ -465,15 +462,7 @@ public class JribbleAstBuilder {
           constructor(i, def, clazz);
         }
         for (MethodDef i : def.jmethodDefs()) {
-          try {
-            methodDef(i, clazz, def);
-          } catch (Exception e) {
-            String msg = "ERROR: %1s has a problematic method %2s, we are skipping it and printing exception below. \n %3s";
-            System.out.println(String.format(msg, clazz.getName(), i.name(), e.toString()));
-          } catch (AssertionError e) {
-            String msg = "ERROR: %1s has a problematic method %2s, we are skipping it and printing exception below. \n %3s";
-            System.out.println(String.format(msg, clazz.getName(), i.name(), e.toString()));
-          }
+          methodDef(i, clazz, def);
         }
         for (FieldDef i : def.jfieldDefs()) {
           fieldDef(i, def, clazz);

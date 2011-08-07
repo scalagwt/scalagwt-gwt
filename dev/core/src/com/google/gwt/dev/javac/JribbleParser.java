@@ -14,7 +14,7 @@ public class JribbleParser {
   private static final DefParser parser = new DefParserForJava();
 
   public static DeclaredType parse(TreeLogger logger, String typeName, String source) {
-    Either<DeclaredType, String> result = parser.parse(new StringReader(source), "not used");
+    Either<DeclaredType, String> result = parser.parse(new StringReader(source), typeName);
     if (result.isRight()) {
       throw new RuntimeException(String.format(
         "Failed to parse %1s, parsing failed with a message:\n%2s",
