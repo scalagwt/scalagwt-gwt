@@ -1,0 +1,35 @@
+class Bar extends Object {
+  String f1
+
+  String f2
+
+  static String f3
+
+  static String f4
+
+  private static final void $clinit(){
+    Object.$clinit();
+    static String f3 = "f3";
+  }
+
+  private final void $init(){
+    String f1 = "f1";
+  }
+
+  public Class getClass(){
+    return Bar.class;
+  }
+
+  void zaz(Bar other){
+    this.f1 = "f11";
+    other.f2 = "f22";
+    Bar.f3 = "f33";
+    Other.i = 1;
+  }
+
+  public Bar(){
+    this.$init();
+    super();
+  }
+
+}

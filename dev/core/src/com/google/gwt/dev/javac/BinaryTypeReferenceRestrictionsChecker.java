@@ -127,7 +127,7 @@ public class BinaryTypeReferenceRestrictionsChecker {
       alreadySeenTypeBindings.add(binaryTypeBinding);
 
       String fileName = String.valueOf(binaryTypeBinding.getFileName());
-      if (fileName.endsWith(".java")) {
+      if (fileName.endsWith(".java") || fileName.endsWith(".jribble")) {
         // This binary name is valid; it is a reference to a unit that was
         // compiled in a previous JDT run.
         continue;

@@ -210,7 +210,7 @@ public abstract class TypeOracleMediatorTestBase extends TestCase {
       List<TypeData> results = new ArrayList<TypeData>();
       String packageName = Shared.getPackageName(aClass.getName());
       TypeData newData =
-          new TypeData(packageName, aClass.getSimpleName(), aClass.getName().replace(".", "/"),
+          new TypeData(packageName, aClass.getName().replace(".", "/"),
               null, getByteCode(aClass), System.currentTimeMillis());
       results.add(newData);
       Class<?>[] subclasses = aClass.getDeclaredClasses();

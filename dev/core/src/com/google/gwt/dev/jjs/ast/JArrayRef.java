@@ -36,6 +36,14 @@ public class JArrayRef extends JExpression {
     if (type instanceof JNullType) {
       return null;
     }
+    // Jribble mini ASTs use void for all external fields since
+    // we don't know what type they really are. This is later
+    // fixed in UnifyAst, so for now (in JribbleAstBuilder),
+    // pretend this is null. Otherwise the next line will
+    // fail with a ClassCastException.
+    if (type == JPrimitiveType.VOID) {
+      return null;
+    }
     return (JArrayType) ((JReferenceType) type).getUnderlyingType();
   }
 

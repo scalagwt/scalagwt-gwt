@@ -216,6 +216,7 @@
           <pathelement location="${gwt.tools.lib}/eclipse/jdt-3.4.2.jar" />
           <pathelement location="${gwt.tools.lib}/tomcat/commons-collections-3.1.jar" />
           <pathelement location="${gwt.tools.lib}/guava/guava-r06/guava-r06-rebased-2.jar" />
+          <fileset dir="${gwt.root}/scalagwt-lib" includes="*.jar"/>
       </classpath>
     </gwt.javac>
   </target>

@@ -87,8 +87,8 @@ public class ResolveGenericsTest extends AsmTestCase {
       delegate.addThrows(method, exception);
     }
 
-    public Map<String, JRealClassType> getBinaryMapper() {
-      return delegate.getBinaryMapper();
+    public Map<String, JRealClassType> getInternalMapper() {
+      return delegate.getInternalMapper();
     }
 
     public TypeOracle getTypeOracle() {
@@ -196,7 +196,7 @@ public class ResolveGenericsTest extends AsmTestCase {
         "dispatch", TestHandler.class);
     for (JClassType type : oracle.getTypes()) {
       if (type instanceof JRealClassType) {
-        mediator.getBinaryMapper().put(
+        mediator.getInternalMapper().put(
             type.getQualifiedBinaryName().replace('.', '/'),
             (JRealClassType) type);
       }
@@ -289,11 +289,11 @@ public class ResolveGenericsTest extends AsmTestCase {
   }
 
   private void resolveClassSignature(JRealClassType type, String signature) {
-    Map<String, JRealClassType> binaryMapper = resolver.getBinaryMapper();
+    Map<String, JRealClassType> internalMapper = resolver.getInternalMapper();
     TypeParameterLookup lookup = new TypeParameterLookup();
     lookup.pushEnclosingScopes(type);
     ResolveClassSignature classResolver = new ResolveClassSignature(resolver,
-        binaryMapper, failTreeLogger, type, lookup);
+        internalMapper, failTreeLogger, type, lookup);
     new SignatureReader(signature).accept(classResolver);
     classResolver.finish();
   }
@@ -306,7 +306,7 @@ public class ResolveGenericsTest extends AsmTestCase {
     Method reflectionMethod = reflectionMethods.get(method);
     String desc = Type.getMethodDescriptor(reflectionMethod);
     CollectMethodData methodData = new CollectMethodData(ClassType.TopLevel,
-        access, method.getName(), desc, signature, null);
+        access, method.getName(), desc, signature, null, false);
     Class<?>[] paramTypes = reflectionMethod.getParameterTypes();
     int n = paramTypes.length;
     Type[] argTypes = new Type[n];

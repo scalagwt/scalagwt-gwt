@@ -43,7 +43,7 @@ public class CompilationUnitInvalidator {
       if (!unit.isError()) {
         currentlyValidUnits.add(unit);
         for (CompiledClass cc : unit.getCompiledClasses()) {
-          currentlyValidClasses.add(cc.getSourceName());
+          currentlyValidClasses.add(cc.getInternalName());
         }
       }
     }
@@ -63,7 +63,7 @@ public class CompilationUnitInvalidator {
         if (invalidRefs.size() > 0) {
           it.remove();
           for (CompiledClass cc : unitToCheck.getCompiledClasses()) {
-            currentlyValidClasses.remove(cc.getSourceName());
+            currentlyValidClasses.remove(cc.getInternalName());
           }
           changed = true;
           TreeLogger branch = logger.branch(TreeLogger.DEBUG,

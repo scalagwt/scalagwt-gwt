@@ -1,0 +1,24 @@
+class Bar extends Object {
+  private static final void $clinit(){
+    Object.$clinit();
+  }
+
+  private final void $init(){
+  }
+
+  public Class getClass(){
+    return Bar.class;
+  }
+
+  public Bar(String s){
+    this.$init();
+    super();
+    Window.alert(s);
+  }
+
+  public Bar(Integer i){
+    this("a");
+    Window.alert(i);
+  }
+
+}

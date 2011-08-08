@@ -15,20 +15,26 @@
  */
 package com.google.gwt.dev.javac;
 
+import static com.google.gwt.thirdparty.guava.common.collect.Lists.newArrayList;
+
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.dev.javac.JdtCompiler.AdditionalTypeProviderDelegate;
 import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
+import com.google.gwt.dev.jjs.impl.JribbleAstBuilder;
 import com.google.gwt.dev.js.ast.JsRootScope;
 import com.google.gwt.dev.resource.Resource;
+import com.google.gwt.dev.util.Name.BinaryName;
 import com.google.gwt.dev.util.StringInterner;
+import com.google.gwt.dev.util.Util;
 import com.google.gwt.dev.util.log.speedtracer.CompilerEventType;
 import com.google.gwt.dev.util.log.speedtracer.DevModeEventType;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.Event;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.EventType;
+import com.google.jribble.ast.DeclaredType;
 
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
@@ -38,7 +44,10 @@ import org.eclipse.jdt.internal.compiler.classfmt.ClassFormatException;
 import org.eclipse.jdt.internal.compiler.lookup.Binding;
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -51,6 +60,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+
 
 /**
  * Manages a centralized cache for compiled units.
@@ -104,7 +114,9 @@ public class CompilationStateBuilder {
             unresolvedSimple.add(interner.intern(String.valueOf(simpleRef)));
           }
           for (char[][] qualifiedRef : cud.compilationResult().qualifiedReferences) {
-            unresolvedQualified.add(interner.intern(CharOperation.toString(qualifiedRef)));
+            // TODO(stephenh) Kill crappy source -> internal conversion
+            // https://github.com/scalagwt/scalagwt-gwt/issues/1
+            unresolvedQualified.add(interner.intern(CharOperation.toString(qualifiedRef).replace('.', '/')));
           }
           for (String jsniDep : jsniDeps) {
             unresolvedQualified.add(interner.intern(jsniDep));
@@ -125,7 +137,7 @@ public class CompilationStateBuilder {
           }
 
           for (CompiledClass cc : compiledClasses) {
-            allValidClasses.put(cc.getSourceName(), cc);
+            allValidClasses.put(cc.getInternalName(), cc);
           }
 
           builder.setClasses(compiledClasses).setTypes(types).setDependencies(dependencies)
@@ -139,13 +151,15 @@ public class CompilationStateBuilder {
     }
 
     /**
-     * A global cache of all currently-valid class files keyed by source name.
+     * A global cache of all currently-valid class files keyed by internal name.
      * This is used to validate dependencies when reusing previously cached
      * units, to make sure they can be recompiled if necessary.
      */
     private final Map<String, CompiledClass> allValidClasses = new HashMap<String, CompiledClass>();
 
     private final GwtAstBuilder astBuilder = new GwtAstBuilder();
+
+    private final JribbleAstBuilder jribbleAstBuilder = new JribbleAstBuilder();
 
     private transient LinkedBlockingQueue<CompilationUnitBuilder> buildQueue;
 
@@ -184,7 +198,7 @@ public class CompilationStateBuilder {
     void addValidUnit(CompilationUnit unit) {
       compiler.addCompiledUnit(unit);
       for (CompiledClass cc : unit.getCompiledClasses()) {
-        allValidClasses.put(cc.getSourceName(), cc);
+        allValidClasses.put(cc.getInternalName(), cc);
       }
     }
 
@@ -192,15 +206,6 @@ public class CompilationStateBuilder {
         Collection<CompilationUnitBuilder> builders,
         Map<CompilationUnitBuilder, CompilationUnit> cachedUnits, EventType eventType,
         boolean suppressErrors) {
-      // Initialize the set of valid classes to the initially cached units.
-      for (CompilationUnit unit : cachedUnits.values()) {
-        for (CompiledClass cc : unit.getCompiledClasses()) {
-          // Map by source name.
-          String sourceName = cc.getSourceName();
-          allValidClasses.put(sourceName, cc);
-        }
-      }
-
       ArrayList<CompilationUnit> resultUnits = new ArrayList<CompilationUnit>();
       do {
         // Compile anything that needs to be compiled.
@@ -228,6 +233,7 @@ public class CompilationStateBuilder {
         };
         buildThread.setName("CompilationUnitBuilder");
         buildThread.start();
+        stealJribbleUnits(logger, builders);
         Event jdtCompilerEvent = SpeedTracerLogger.start(eventType);
         try {
           compiler.doCompile(builders);
@@ -295,7 +301,7 @@ public class CompilationStateBuilder {
         // Any units we invalidated must now be removed from the valid classes.
         for (CompilationUnit unit : invalidatedUnits) {
           for (CompiledClass cc : unit.getCompiledClasses()) {
-            allValidClasses.remove(cc.getSourceName());
+            allValidClasses.remove(cc.getInternalName());
           }
         }
       } while (builders.size() > 0);
@@ -327,6 +333,43 @@ public class CompilationStateBuilder {
             + "Compile with -strict or with -logLevel set to TRACE or DEBUG to see all errors.");
       }
       return resultUnits;
+    }
+
+    /** Remove jribble units from {@code builders} and fill in its {@CompilationUnitBuilder} ourselves.
+     *
+     * Keeps jribble CompilationUnitBuilders from getting to the JDT, but still
+     * puts them onto the buildQueue for serialization.
+     */
+    private void stealJribbleUnits(TreeLogger logger, Collection<CompilationUnitBuilder> builders) {
+      // steal jribble builders
+      Collection<CompilationUnitBuilder> jribbleBuilders = new ArrayList<CompilationUnitBuilder>();
+      for (Iterator<CompilationUnitBuilder> i = builders.iterator(); i.hasNext(); ) {
+        CompilationUnitBuilder cub = i.next();
+        if (cub.getLocation().endsWith(".jribble")) {
+          jribbleBuilders.add(cub);
+          i.remove();
+        }
+      }
+      // consider threading this out--can take awhile
+      for (CompilationUnitBuilder cub : jribbleBuilders) {
+        // assume one CompiledClass per CompilationUnit
+        System.out.println("Compiling " + cub.getTypeName());
+        CompiledClass cc =
+            new CompiledClass(readBytes(cub), null, false, BinaryName.toInternalName(cub.getTypeName()));
+        DeclaredType declaredType = JribbleParser.parse(logger, cub.getTypeName(), cub.getSource());
+        JribbleAstBuilder.Result result = jribbleAstBuilder.process(declaredType);
+        cub.setTypes(result.types);
+        cub.setDependencies(Dependencies.buildFromApiRefs(cc.getPackageName(), newArrayList(result.apiRefs)));
+        cub.setMethodArgs(result.methodArgNames);
+        cub.setClasses(newArrayList(cc));
+        cub.setJsniMethods(new ArrayList<JsniMethod>());
+        // allValidClasses is maintained by the JDT UnitProcessorImpl, which we don't hit, so update it here
+        allValidClasses.put(cc.getInternalName(), cc);
+        // Add classes to the JDT compiler in case .java files refer to .scala files
+        // (Can't use addValidUnit because our CompilationUnit hasn't been built yet in the build queue yet)
+        compiler.addCompiledClass(cc);
+        buildQueue.add(cub);
+      }
     }
   }
 
@@ -446,6 +489,24 @@ public class CompilationStateBuilder {
     return new CompilationState(logger, resultUnits, compileMoreLater);
   }
 
+  private static byte[] readBytes(CompilationUnitBuilder cub) {
+    // TODO(stephenh) Somehow load forked scala-library bytecode
+    // https://github.com/scalagwt/scalagwt-gwt/issues/2
+    String classFile = cub.getTypeName().replace('.', '/') + ".class";
+    try {
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
+      if (in != null) {
+        Util.copy(in, out); // does close
+        return out.toByteArray();
+      } else {
+        throw new RuntimeException("Class file not found: " + classFile);
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public CompilationState doBuildFrom(TreeLogger logger, Set<Resource> resources,
       boolean suppressErrors) {
     return doBuildFrom(logger, resources, null, suppressErrors);
@@ -484,4 +545,5 @@ public class CompilationStateBuilder {
     return compileMoreLater.compile(logger, builders, cachedUnits,
         CompilerEventType.JDT_COMPILER_CSB_GENERATED, suppressErrors);
   }
+
 }

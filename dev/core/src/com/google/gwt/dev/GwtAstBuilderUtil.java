@@ -81,7 +81,7 @@ public class GwtAstBuilderUtil {
 
     CorrelationFactory correlator = DummyCorrelationFactory.INSTANCE;
     JsProgram jsProgram = new JsProgram(correlator);
-    JProgram jprogram = new JProgram(correlator);
+    JProgram jprogram = new JProgram(compilationState.getTypeOracle(), correlator);
     TypeMap typeMap = new TypeMap(jprogram);
     TypeDeclaration[] allTypeDeclarations = BuildTypeMap.exec(typeMap, goldenCuds, jsProgram);
     // BuildTypeMap can uncover syntactic JSNI errors; report & abort

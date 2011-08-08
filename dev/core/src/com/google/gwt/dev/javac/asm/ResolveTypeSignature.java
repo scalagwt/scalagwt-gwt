@@ -41,12 +41,11 @@ import java.util.Map;
 public class ResolveTypeSignature extends EmptySignatureVisitor {
 
   private final Resolver resolver;
-  private final Map<String, JRealClassType> binaryMapper;
+  private final Map<String, JRealClassType> internalMapper;
   private final TreeLogger logger;
   private final JType[] returnTypeRef;
   private final TypeParameterLookup lookup;
   private final char wildcardMatch;
-  private final JClassType enclosingClass;
 
   private JClassType outerClass;
   private final List<JType[]> args = new ArrayList<JType[]>();
@@ -60,26 +59,22 @@ public class ResolveTypeSignature extends EmptySignatureVisitor {
    * @param logger
    * @param returnTypeRef "pointer" to return location, ie. 1-element array
    * @param lookup
-   * @param enclosingClass
    */
   public ResolveTypeSignature(Resolver resolver,
-      Map<String, JRealClassType> binaryMapper, TreeLogger logger,
-      JType[] returnTypeRef, TypeParameterLookup lookup,
-      JClassType enclosingClass) {
-    this(resolver, binaryMapper, logger, returnTypeRef, lookup, enclosingClass,
-        '=');
+      Map<String, JRealClassType> internalMapper, TreeLogger logger,
+      JType[] returnTypeRef, TypeParameterLookup lookup) {
+    this(resolver, internalMapper, logger, returnTypeRef, lookup, '=');
   }
 
   public ResolveTypeSignature(Resolver resovler,
-      Map<String, JRealClassType> binaryMapper, TreeLogger logger,
+      Map<String, JRealClassType> internalMapper, TreeLogger logger,
       JType[] returnTypeRef, TypeParameterLookup lookup,
-      JClassType enclosingClass, char wildcardMatch) {
+      char wildcardMatch) {
     this.resolver = resovler;
-    this.binaryMapper = binaryMapper;
+    this.internalMapper = internalMapper;
     this.logger = logger;
     this.returnTypeRef = returnTypeRef;
     this.lookup = lookup;
-    this.enclosingClass = enclosingClass;
     this.wildcardMatch = wildcardMatch;
   }
 
@@ -129,8 +124,9 @@ public class ResolveTypeSignature extends EmptySignatureVisitor {
   @Override
   public void visitClassType(String internalName) {
     assert Name.isInternalName(internalName);
-    outerClass = enclosingClass;
-    JRealClassType classType = binaryMapper.get(internalName);
+    // TODO(stephenh): Why was this here if enclosingClass was always null?
+    // outerClass = enclosingClass;
+    JRealClassType classType = internalMapper.get(internalName);
     // TODO(jat): failures here are likely binary-only annotations or local
     // classes that have been elided from TypeOracle -- what should we do in
     // those cases? Currently we log an error and replace them with Object,
@@ -139,7 +135,11 @@ public class ResolveTypeSignature extends EmptySignatureVisitor {
         logger, classType);
     returnTypeRef[0] = classType;
     if (!resolveSuccess || returnTypeRef[0] == null) {
-      logger.log(TreeLogger.ERROR, "Unable to resolve class " + internalName);
+      // TODO(stephenh) Remove check once forked scala-library bytecode is available
+      // https://github.com/scalagwt/scalagwt-gwt/issues/2
+      if (!internalName.startsWith("scala/")) {
+        logger.log(TreeLogger.ERROR, "Unable to resolve class " + internalName);
+      }
       // Replace bound with Object if we can't resolve the class.
       returnTypeRef[0] = resolver.getTypeOracle().getJavaLangObject();
     }
@@ -190,8 +190,8 @@ public class ResolveTypeSignature extends EmptySignatureVisitor {
     // not sure what the enclosing class of a type argument means, but
     // I haven't found a case where it is actually used while processing
     // the type argument.
-    return new ResolveTypeSignature(resolver, binaryMapper, logger, arg,
-        lookup, null, wildcard);
+    return new ResolveTypeSignature(resolver, internalMapper, logger, arg,
+        lookup, wildcard);
   }
 
   @Override

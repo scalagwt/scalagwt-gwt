@@ -58,12 +58,7 @@ public class JField extends JVariable implements CanBeStatic, HasEnclosingType {
     }
 
     private Object readResolve() {
-      String name = signature.substring(0, signature.indexOf(':'));
-      JField result =
-          new JField(SourceOrigin.UNKNOWN, name, enclosingType, JNullType.INSTANCE, false,
-              Disposition.NONE);
-      result.signature = signature;
-      return result;
+      return new JField(signature, enclosingType);
     }
   }
 
@@ -84,6 +79,12 @@ public class JField extends JVariable implements CanBeStatic, HasEnclosingType {
   private final boolean isThisRef;
   private boolean isVolatile;
   private transient String signature;
+
+  /** Create a bare-bones external field. */
+  private JField(String signature, JDeclaredType enclosingType) {
+    this(SourceOrigin.UNKNOWN, signature.substring(0, signature.indexOf(':')), enclosingType, JNullType.INSTANCE, false, Disposition.NONE);
+    this.signature = signature;
+  }
 
   public JField(SourceInfo info, String name, JDeclaredType enclosingType, JType type,
       boolean isStatic, Disposition disposition) {
@@ -179,7 +180,7 @@ public class JField extends JVariable implements CanBeStatic, HasEnclosingType {
     if (this == originalField) {
       return true;
     }
-    return originalField.isExternal() && originalField.getSignature().equals(this.getSignature())
+    return originalField.isExternal() && originalField.getName().equals(this.getName())
         && this.getEnclosingType().replaces(originalField.getEnclosingType());
   }
 }

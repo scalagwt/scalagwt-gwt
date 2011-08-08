@@ -18,6 +18,7 @@ package com.google.gwt.dev.javac;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.dev.javac.CompilationStateBuilder.CompileMoreLater;
 import com.google.gwt.dev.javac.typemodel.TypeOracle;
+import com.google.gwt.dev.util.StringInterner;
 import com.google.gwt.dev.util.log.speedtracer.DevModeEventType;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.Event;
@@ -35,7 +36,7 @@ import java.util.Map;
 public class CompilationState {
 
   /**
-   * Classes mapped by binary name.
+   * Classes mapped by internal name.
    */
   protected final Map<String, CompiledClass> classFileMap = new HashMap<String, CompiledClass>();
 
@@ -99,7 +100,7 @@ public class CompilationState {
   }
 
   /**
-   * Returns a map of all compiled classes by binary name.
+   * Returns a map of all compiled classes by internal name.
    */
   public Map<String, CompiledClass> getClassFileMap() {
     return exposedClassFileMap;
@@ -156,7 +157,12 @@ public class CompilationState {
       unitMap.put(unit.getTypeName(), unit);
       for (CompiledClass compiledClass : unit.getCompiledClasses()) {
         classFileMap.put(compiledClass.getInternalName(), compiledClass);
-        classFileMapBySource.put(compiledClass.getSourceName(), compiledClass);
+      }
+    }
+    // Make a 2nd pass to create classFileMapBySource only after classFileMap is fully populated
+    for (CompilationUnit unit : units) {
+      for (CompiledClass compiledClass : unit.getCompiledClasses()) {
+        classFileMapBySource.put(StringInterner.get().intern(compiledClass.getSourceName(classFileMap)), compiledClass);
       }
     }
     CompilationUnitInvalidator.retainValidUnits(logger, units,

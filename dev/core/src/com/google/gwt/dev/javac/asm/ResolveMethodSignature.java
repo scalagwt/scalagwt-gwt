@@ -156,16 +156,16 @@ public class ResolveMethodSignature extends EmptySignatureVisitor {
   public SignatureVisitor visitClassBound() {
     JType[] bound = new JClassType[1];
     bounds.add(bound);
-    return new ResolveTypeSignature(resolver, resolver.getBinaryMapper(),
-        logger, bound, typeParamLookup, null);
+    return new ResolveTypeSignature(resolver, resolver.getInternalMapper(),
+        logger, bound, typeParamLookup);
   }
 
   @Override
   public SignatureVisitor visitExceptionType() {
     JClassType[] exc = new JClassType[1];
     exceptions.add(exc);
-    return new ResolveTypeSignature(resolver, resolver.getBinaryMapper(),
-        logger, exc, typeParamLookup, null);
+    return new ResolveTypeSignature(resolver, resolver.getInternalMapper(),
+        logger, exc, typeParamLookup);
   }
 
   @Override
@@ -179,22 +179,22 @@ public class ResolveMethodSignature extends EmptySignatureVisitor {
   public SignatureVisitor visitInterfaceBound() {
     JType[] bound = new JType[1];
     bounds.add(bound);
-    return new ResolveTypeSignature(resolver, resolver.getBinaryMapper(),
-        logger, bound, typeParamLookup, null);
+    return new ResolveTypeSignature(resolver, resolver.getInternalMapper(),
+        logger, bound, typeParamLookup);
   }
 
   @Override
   public SignatureVisitor visitParameterType() {
     JType[] param = new JType[1];
     params.add(param);
-    return new ResolveTypeSignature(resolver, resolver.getBinaryMapper(),
-        logger, param, typeParamLookup, null);
+    return new ResolveTypeSignature(resolver, resolver.getInternalMapper(),
+        logger, param, typeParamLookup);
   }
 
   @Override
   public SignatureVisitor visitReturnType() {
-    return new ResolveTypeSignature(resolver, resolver.getBinaryMapper(),
-        logger, returnType, typeParamLookup, null);
+    return new ResolveTypeSignature(resolver, resolver.getInternalMapper(),
+        logger, returnType, typeParamLookup);
   }
 
   private void finishBound() {

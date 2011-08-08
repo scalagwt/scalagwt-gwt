@@ -27,7 +27,6 @@ import com.google.gwt.dev.asm.signature.SignatureReader;
 import com.google.gwt.dev.asm.signature.SignatureVisitor;
 import com.google.gwt.dev.util.Name;
 import com.google.gwt.dev.util.Name.BinaryName;
-import com.google.gwt.dev.util.Name.SourceOrBinaryName;
 import com.google.web.bindery.autobean.shared.ValueCodex;
 import com.google.web.bindery.requestfactory.shared.BaseProxy;
 import com.google.web.bindery.requestfactory.shared.EntityProxy;
@@ -647,7 +646,7 @@ public class RequestFactoryInterfaceValidator {
   }
 
   private static String print(Type type) {
-    return SourceOrBinaryName.toSourceName(type.getClassName());
+    return BinaryName.toSourceName(type.getClassName());
   }
 
   /**

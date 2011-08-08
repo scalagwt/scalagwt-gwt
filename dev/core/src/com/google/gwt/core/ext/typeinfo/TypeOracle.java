@@ -120,7 +120,7 @@ public abstract class TypeOracle {
   public abstract JPackage findPackage(String pkgName);
 
   /**
-   * Finds a class or interface given its fully-qualified name.
+   * Finds a class or interface given its fully-qualified source name.
    *
    * @param name fully-qualified class/interface name - for nested classes, use
    *          its source name rather than its binary name (that is, use a "."
@@ -138,6 +138,24 @@ public abstract class TypeOracle {
    * @return <code>null</code> if the type is not found
    */
   public abstract JClassType findType(String pkgName, String typeName);
+
+  /**
+   * Finds a class or interface given its fully-qualified internal name.
+   *
+   * @param name fully-qualified class/interface name
+   *
+   * @return <code>null</code> if the type is not found
+   */
+  public abstract JClassType findTypeByInternalName(String name);
+
+  /**
+   * Finds a class or interface given its fully-qualified source or binary name.
+   *
+   * @param name fully-qualified class/interface name
+   *
+   * @return <code>null</code> if the type is not found
+   */
+  public abstract JClassType findTypeBySourceOrBinaryName(String name);
 
   /**
    * Gets the type object that represents an array of the specified type. The

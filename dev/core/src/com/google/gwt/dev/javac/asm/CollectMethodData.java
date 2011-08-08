@@ -56,7 +56,7 @@ public class CollectMethodData extends EmptyVisitor {
   @SuppressWarnings("unchecked")
   // for new List[]
   public CollectMethodData(CollectClassData.ClassType classType, int access,
-      String name, String desc, String signature, String[] exceptions) {
+      String name, String desc, String signature, String[] exceptions, boolean isJribble) {
     this.access = access;
     this.name = name;
     this.desc = desc;
@@ -70,7 +70,7 @@ public class CollectMethodData extends EmptyVisitor {
     // have this synthetic parameter depending on whether the containing
     // method is static, but we can't get that info here. However, since
     // local classes are dropped from TypeOracle, we don't care.
-    if (classType.hasHiddenConstructorArg() && "<init>".equals(name)) {
+    if (classType.hasHiddenConstructorArg() && "<init>".equals(name) && !isJribble) {
       // remove "this$1" as a parameter
       if (argTypes.length < 1) {
         throw new IllegalStateException(

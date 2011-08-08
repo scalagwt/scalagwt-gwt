@@ -60,6 +60,9 @@ public abstract class JReferenceType extends JType implements CanBeAbstract {
     return nonNullType;
   }
 
+  /**
+   * @return the class name, e.g. {@code Foo$Bar} for {@code foo.Foo$Bar}
+   */
   public String getShortName() {
     int dotpos = name.lastIndexOf('.');
     return name.substring(dotpos + 1);

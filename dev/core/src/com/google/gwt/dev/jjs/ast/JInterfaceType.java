@@ -44,7 +44,7 @@ public class JInterfaceType extends JDeclaredType {
   /**
    * Construct a bare-bones deserialized external interface.
    */
-  private JInterfaceType(String name) {
+  public JInterfaceType(String name) {
     super(SourceOrigin.UNKNOWN, name);
     setExternal(true);
   }
