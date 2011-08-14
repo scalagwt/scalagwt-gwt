@@ -41,5 +41,8 @@
 	<classpathentry kind="var" path="GWT_TOOLS/lib/htmlunit/htmlunit-r5940/htmlunit-r5940.jar" sourcepath="/GWT_TOOLS/lib/htmlunit/htmlunit-r5940/htmlunit-r5940-sources.jar"/>
 	<classpathentry kind="var" path="GWT_TOOLS/lib/protobuf/protobuf-2.2.0/protobuf-java-rebased-2.2.0.jar"/>
 	<classpathentry kind="var" path="GWT_TOOLS/lib/guava/guava-r06/guava-r06-rebased.jar"/>
+	<classpathentry kind="var" path="GWT_TOOLS/lib/apache/commons/commons-io-1.4.jar"/>
+	<classpathentry exported="true" kind="lib" path="scalagwt-lib/scala-library.jar"/>
+	<classpathentry exported="true" kind="lib" path="scalagwt-lib/jribble_2.9.0-1-0.1-SNAPSHOT.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

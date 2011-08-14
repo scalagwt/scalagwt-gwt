@@ -66,7 +66,7 @@ public class AstConstructor {
       }
     };
 
-    JProgram jprogram = new JProgram(DummyCorrelationFactory.INSTANCE);
+    JProgram jprogram = new JProgram(state.getTypeOracle(), DummyCorrelationFactory.INSTANCE);
     JsProgram jsProgram = new JsProgram(DummyCorrelationFactory.INSTANCE);
     assert GwtAstBuilder.ENABLED;
     UnifyAst unifyAst = new UnifyAst(jprogram, jsProgram, options, rpo);

@@ -21,6 +21,7 @@ import com.google.gwt.dev.asm.MethodVisitor;
 import com.google.gwt.dev.asm.Opcodes;
 import com.google.gwt.dev.asm.commons.EmptyVisitor;
 import com.google.gwt.dev.util.Name;
+import com.google.gwt.dev.util.Name.InternalName;
 import com.google.gwt.dev.util.StringInterner;
 
 import java.util.ArrayList;
@@ -154,6 +155,7 @@ public class CollectClassData extends EmptyVisitor {
   private String outerClass;
   private String outerMethodName;
   private String outerMethodDesc;
+  private String innerClass;
   private CollectClassData.ClassType classType = ClassType.TopLevel;
 
   /**
@@ -205,17 +207,36 @@ public class CollectClassData extends EmptyVisitor {
   }
 
   /**
-   * @return the name
+   * @return the internal name
    */
   public String getName() {
     return name;
   }
 
   /**
-   * @return the outerClass
+   * @return the simple name
+   */
+  public String getSimpleName() {
+    if (innerClass != null) {
+      return innerClass;
+    } else {
+      // this is a top-level class, so the simple name is the class name
+      return InternalName.getClassName(name);
+    }
+  }
+
+  /**
+   * @return the outerClass name (or null if not an inner class), e.g. {@code Foo} for {@code foo/Foo$Bar}
    */
   public String getOuterClass() {
     return outerClass;
+  }
+
+  /**
+   * @return the simple innerClass name (or null if not an inner class), e.g. {@code Bar{ for {@code foo/Foo$Bar}
+   */
+  public String getInnerClass() {
+    return innerClass;
   }
 
   /**
@@ -345,6 +366,7 @@ public class CollectClassData extends EmptyVisitor {
     if (this.name.equals(name)) {
       if (outerName != null) {
         outerClass = outerName;
+        innerClass = innerName;
       }
       // TODO(jat): should we only pull in a subset of these flags? Use only
       // these flags, or what? For now, just grab ACC_STATIC and ACC_PRIVATE
@@ -377,8 +399,9 @@ public class CollectClassData extends EmptyVisitor {
       // skip synthetic methods
       return null;
     }
+    boolean isJribble = source.endsWith(".scala");
     CollectMethodData mv = new CollectMethodData(classType, access, name, desc,
-        signature, exceptions);
+        signature, exceptions, isJribble);
     methods.add(mv);
     return mv;
   }

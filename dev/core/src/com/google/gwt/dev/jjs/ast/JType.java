@@ -87,7 +87,7 @@ public abstract class JType extends JNode implements HasName, CanBeFinal {
     if (this == originalType) {
       return true;
     }
-    return originalType.isExternal() && originalType.getName().equals(this.getName());
+    return !isExternal() && originalType.isExternal() && originalType.getName().equals(this.getName());
   }
 
 }

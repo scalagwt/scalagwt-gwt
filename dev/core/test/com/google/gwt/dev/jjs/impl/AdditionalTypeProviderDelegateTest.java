@@ -212,8 +212,8 @@ public class AdditionalTypeProviderDelegateTest extends OptimizerTestBase {
         return false;
       }
 
-      public GeneratedUnit doFindAdditionalType(String binaryName) {
-        if (binaryName.compareTo("myPackage/InsertedClass") == 0) {
+      public GeneratedUnit doFindAdditionalType(String internalName) {
+        if (internalName.compareTo("myPackage/InsertedClass") == 0) {
           return new JavaWrapperCompilationUnit();
       }
       return null;

@@ -123,7 +123,7 @@ public class GwtSpecificValidatorCreator extends AbstractCreator {
    */
   public static String asLiteral(Object value) throws IllegalArgumentException {
     Class<?> clazz = value.getClass();
-    JProgram jProgram = new JProgram();
+    JProgram jProgram = new JProgram(null);
 
     if (clazz.isArray()) {
       StringBuilder sb = new StringBuilder();

@@ -33,7 +33,7 @@ public class CompiledClassTest extends TestCase {
    */
   public void testSourceName() throws Exception {
     CompiledClass compiledClass = new CompiledClass(dummyByteCode, null, false, DUMMY_NAME);
-    assertEquals("com.example.DeadBeef", compiledClass.getSourceName());
+    assertEquals("com.example.DeadBeef", compiledClass.getSourceName(null));
   }
   
   public void testCompiledClassSerialization() throws Exception {

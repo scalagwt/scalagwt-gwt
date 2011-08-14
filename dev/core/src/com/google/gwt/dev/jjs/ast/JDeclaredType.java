@@ -199,12 +199,6 @@ public abstract class JDeclaredType extends JReferenceType {
     return methods;
   }
 
-  @Override
-  public String getShortName() {
-    int dotpos = name.lastIndexOf('.');
-    return name.substring(dotpos + 1);
-  }
-
   /**
    * Returns this type's super class, or <code>null</code> if this type is
    * {@link Object} or an interface.

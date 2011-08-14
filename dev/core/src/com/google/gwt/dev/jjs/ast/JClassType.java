@@ -50,7 +50,7 @@ public class JClassType extends JDeclaredType implements CanBeSetFinal {
   /**
    * Construct a bare-bones deserialized external class.
    */
-  private JClassType(String name) {
+  public JClassType(String name) {
     super(SourceOrigin.UNKNOWN, name);
     isAbstract = false;
     setExternal(true);
@@ -98,6 +98,17 @@ public class JClassType extends JDeclaredType implements CanBeSetFinal {
       methods = visitor.acceptWithInsertRemoveImmutable(methods);
     }
     visitor.endVisit(this, ctx);
+  }
+
+  public boolean hasSuperClass(JClassType lookingFor) {
+    JClassType current = superClass;
+    while (current != null) {
+      if (current == lookingFor) {
+        return true;
+      }
+      current = current.getSuperClass();
+    }
+    return false;
   }
 
   @Override

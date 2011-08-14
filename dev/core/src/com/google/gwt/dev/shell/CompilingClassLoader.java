@@ -37,9 +37,8 @@ import com.google.gwt.dev.shell.rewrite.HostedModeClassRewriter;
 import com.google.gwt.dev.shell.rewrite.HostedModeClassRewriter.InstanceMethodOracle;
 import com.google.gwt.dev.shell.rewrite.HostedModeClassRewriter.SingleJsoImplData;
 import com.google.gwt.dev.util.JsniRef;
-import com.google.gwt.dev.util.Name;
+import com.google.gwt.dev.util.Name.BinaryName;
 import com.google.gwt.dev.util.Name.InternalName;
-import com.google.gwt.dev.util.Name.SourceOrBinaryName;
 import com.google.gwt.dev.util.Util;
 import com.google.gwt.dev.util.collect.Lists;
 import com.google.gwt.dev.util.log.speedtracer.DevModeEventType;
@@ -246,7 +245,7 @@ public final class CompilingClassLoader extends ClassLoader implements
      */
     private Class<?> getClassFromBinaryOrSourceName(String className) {
       // Try the type oracle first
-      JClassType type = typeOracle.findType(SourceOrBinaryName.toSourceName(className));
+      JClassType type = typeOracle.findTypeBySourceOrBinaryName(className);
       if (type != null) {
         // Use the type oracle to compute the exact binary name
         String jniSig = type.getJNISignature();
@@ -423,7 +422,7 @@ public final class CompilingClassLoader extends ClassLoader implements
        */
       for (String intfName : jsoData.getSingleJsoIntfTypes()) {
         // We only store the name in the data block to keep it lightweight
-        JClassType intf = typeOracle.findType(Name.InternalName.toSourceName(intfName));
+        JClassType intf = typeOracle.findTypeByInternalName(intfName);
         JClassType jso = typeOracle.getSingleJsoImpl(intf);
         for (JMethod method : intf.getMethods()) {
           JClassType implementingJso = findImplementingTypeForMethod(jso,
@@ -454,9 +453,7 @@ public final class CompilingClassLoader extends ClassLoader implements
         return createDescriptor(declaringClasses.iterator().next());
       }
       // Must check for assignability.
-      String sourceName = desc.replace('/', '.');
-      sourceName = sourceName.replace('$', '.');
-      JClassType declaredType = typeOracle.findType(sourceName);
+      JClassType declaredType = typeOracle.findTypeByInternalName(desc);
 
       // Check if I declare this directly.
       if (declaringClasses.contains(declaredType)) {
@@ -1216,10 +1213,10 @@ public final class CompilingClassLoader extends ClassLoader implements
   /**
    * Convert a binary class name into a resource-like name.
    */
-  private String canonicalizeClassName(String className) {
-    String lookupClassName = className.replace('.', '/');
+  private String canonicalizeClassName(String binaryClassName) {
+    String lookupClassName = BinaryName.toInternalName(binaryClassName);
     // A JSO impl class ends with $, strip it
-    if (classRewriter != null && classRewriter.isJsoImpl(className)) {
+    if (classRewriter != null && classRewriter.isJsoImpl(binaryClassName)) {
       lookupClassName = lookupClassName.substring(0,
           lookupClassName.length() - 1);
     }
