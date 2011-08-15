@@ -354,6 +354,8 @@ public class CompilationStateBuilder {
       for (CompilationUnitBuilder cub : jribbleBuilders) {
         // assume one CompiledClass per CompilationUnit
         System.out.println("Compiling " + cub.getTypeName());
+        //TODO(grek): This try...catch is a workaround for following issue: https://github.com/scalagwt/scalagwt-scala/issues/14
+        try {
         CompiledClass cc =
             new CompiledClass(readBytes(cub), null, false, BinaryName.toInternalName(cub.getTypeName()));
         DeclaredType declaredType = JribbleParser.parse(logger, cub.getTypeName(), cub.getSource());
@@ -369,6 +371,13 @@ public class CompilationStateBuilder {
         // (Can't use addValidUnit because our CompilationUnit hasn't been built yet in the build queue yet)
         compiler.addCompiledClass(cc);
         buildQueue.add(cub);
+        } catch (Exception e) {
+          System.out.println("ERROR: " + e.getMessage());
+          e.printStackTrace();
+        } catch (AssertionError ae) {
+          System.out.println("ERROR: " + ae.getMessage());
+          ae.printStackTrace();
+        }
       }
     }
   }
