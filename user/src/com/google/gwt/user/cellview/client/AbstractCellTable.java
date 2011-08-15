@@ -855,7 +855,16 @@ public abstract class AbstractCellTable<T> extends AbstractHasData<T> {
 
       // Render the cell into the builder.
       SafeHtmlBuilder cellBuilder = new SafeHtmlBuilder();
-      column.getCell().render(context, column.getValue(rowValue), cellBuilder);
+      if (column instanceof Column) {
+        /*
+         * If the HasCell is a Column, let it render the Cell itself. This is
+         * here for legacy support.
+         */
+        Column<T, C> theColumn = (Column<T, C>) column;
+        theColumn.render(context, rowValue, cellBuilder);
+      } else {
+        column.getCell().render(context, column.getValue(rowValue), cellBuilder);
+      }
       builder.html(cellBuilder.toSafeHtml());
     }
 
@@ -2391,7 +2400,7 @@ public abstract class AbstractCellTable<T> extends AbstractHasData<T> {
       };
 
       // Fire the event to the cell.
-      cell.onBrowserEvent(context, parentElem, column.getValue(rowValue), event, valueUpdater);
+      cell.onBrowserEvent(context, parentElem, cellValue, event, valueUpdater);
     }
 
     // Reset focus if needed.

@@ -129,11 +129,9 @@ public class CompilationStateBuilder {
               new Dependencies(packageName, unresolvedQualified, unresolvedSimple, apiRefs);
 
           List<JDeclaredType> types = Collections.emptyList();
-          if (GwtAstBuilder.ENABLED) {
-            if (!cud.compilationResult().hasErrors()) {
-              // Make a GWT AST.
-              types = astBuilder.process(cud, artificialRescues, jsniMethods, jsniRefs);
-            }
+          if (!cud.compilationResult().hasErrors()) {
+            // Make a GWT AST.
+            types = astBuilder.process(cud, artificialRescues, jsniMethods, jsniRefs);
           }
 
           for (CompiledClass cc : compiledClasses) {
@@ -536,9 +534,12 @@ public class CompilationStateBuilder {
       // Look for units previously compiled
       CompilationUnit cachedUnit = unitCache.find(builder.getContentId());
       if (cachedUnit != null) {
-        cachedUnits.put(builder, cachedUnit);
-        compileMoreLater.addValidUnit(cachedUnit);
-        continue;
+        // Recompile generated units with errors so source can be dumped.
+        if (!cachedUnit.isError()) {
+          cachedUnits.put(builder, cachedUnit);
+          compileMoreLater.addValidUnit(cachedUnit);
+          continue;
+        }
       }
       builders.add(builder);
     }
