@@ -3,6 +3,7 @@ package com.google.gwt.dev.jjs.impl;
 import static com.google.gwt.dev.jjs.impl.AstUtils.toRef;
 
 import com.google.gwt.dev.javac.MethodArgNamesLookup;
+import com.google.gwt.dev.jjs.ast.JBinaryOperation;
 import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.jjs.ast.JDeclarationStatement;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
@@ -24,6 +25,7 @@ import com.google.jribble.ast.ClassBodyElement;
 import com.google.jribble.ast.ClassDef;
 import com.google.jribble.ast.Constructor;
 import com.google.jribble.ast.ConstructorCall;
+import com.google.jribble.ast.DoubleLiteral;
 import com.google.jribble.ast.Expression;
 import com.google.jribble.ast.FieldDef;
 import com.google.jribble.ast.FieldRef;
@@ -34,6 +36,7 @@ import com.google.jribble.ast.MethodDef;
 import com.google.jribble.ast.NewArray;
 import com.google.jribble.ast.NewCall;
 import com.google.jribble.ast.ParamDef;
+import com.google.jribble.ast.Plus;
 import com.google.jribble.ast.Primitive;
 import com.google.jribble.ast.Ref;
 import com.google.jribble.ast.Return;
@@ -365,6 +368,22 @@ public class JribbleAstBuilderTest extends TestCase {
     foo.classBody = list(foo.defaultCstr, zaz.build());
 
     assertEquals(process(foo), "testSuperCall");
+  }
+
+  public void testBinaryOperationTypePromotion() throws Exception {
+    ClassDefBuilder foo = new ClassDefBuilder("foo.Bar");
+    MethodDefBuilder zaz = new MethodDefBuilder("zaz");
+
+    Statement def = new VarDef(new Primitive("double"), "d", new Some<Expression>(new Plus(new DoubleLiteral(10.0), new IntLiteral(1))));
+    zaz.stmts = list(def);
+    foo.classBody = list(foo.defaultCstr, zaz.build());
+
+    JDeclaredType fooType = process(foo);
+    assertEquals(fooType, "testBinaryOperationTypePromotion");
+    JMethod zazMethod = fooType.getMethods().get(3);
+    // ensure the type of plus is a double
+    JDeclarationStatement decl1 = (JDeclarationStatement) ((JMethodBody) zazMethod.getBody()).getStatements().get(0);
+    Assert.assertEquals(JPrimitiveType.DOUBLE, ((JBinaryOperation) decl1.getInitializer()).getType());
   }
 
   private static Statement newWindowAlert(String message) {
