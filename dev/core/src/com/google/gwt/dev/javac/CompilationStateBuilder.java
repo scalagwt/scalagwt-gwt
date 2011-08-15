@@ -21,6 +21,7 @@ import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.dev.javac.JdtCompiler.AdditionalTypeProviderDelegate;
 import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
+import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
 import com.google.gwt.dev.jjs.impl.JribbleAstBuilder;
@@ -60,6 +61,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 
 /**
@@ -490,13 +493,24 @@ public class CompilationStateBuilder {
   }
 
   private static byte[] readBytes(CompilationUnitBuilder cub) {
-    // TODO(stephenh) Somehow load forked scala-library bytecode
-    // https://github.com/scalagwt/scalagwt-gwt/issues/2
+    String scalaLibrary = System.getProperty("gwt.scalalibrary.path");
+    if (scalaLibrary == null) {
+      throw new InternalCompilerException("gwt.scalalibrary.path property is not set");
+    }
     String classFile = cub.getTypeName().replace('.', '/') + ".class";
     try {
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
+      File file = new File(scalaLibrary);
+      assert file.exists();
+      JarFile jarFile = new JarFile(file);
+      JarEntry jarEntry = jarFile.getJarEntry(classFile);
+      InputStream in;
+      if (jarEntry != null) {
+        in = jarFile.getInputStream(jarEntry);
+      } else {
+        in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
+      }
       if (in != null) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         Util.copy(in, out); // does close
         return out.toByteArray();
       } else {
