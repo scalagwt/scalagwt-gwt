@@ -650,23 +650,21 @@ public class JribbleAstBuilder {
       JExpression rhs = expression(op.rhs(), local);
       JBinaryOperator jop;
       JType type;
-      // TODO(grek): Most of types below are wrong. It looks like we'll need
-      // to store type information for operators too. :-(
       if (op instanceof Equal) {
         jop = JBinaryOperator.EQ;
         type = JPrimitiveType.BOOLEAN;
       } else if (op instanceof Multiply) {
         jop = JBinaryOperator.MUL;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof Divide) {
         jop = JBinaryOperator.DIV;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof Modulus) {
         jop = JBinaryOperator.MOD;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof Minus) {
         jop = JBinaryOperator.SUB;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof Plus) {
         if (lhs.getType() == javaLangString.getNonNull()
             || lhs.getType() == javaLangString
@@ -676,7 +674,7 @@ public class JribbleAstBuilder {
           type = javaLangString;
         } else {
           jop = JBinaryOperator.ADD;
-          type = JPrimitiveType.INT;
+          type = promotedType(lhs.getType(), rhs.getType());
         }
       } else if (op instanceof Greater) {
         jop = JBinaryOperator.GT;
@@ -701,22 +699,22 @@ public class JribbleAstBuilder {
         type = JPrimitiveType.BOOLEAN;
       } else if (op instanceof BitLShift) {
         jop = JBinaryOperator.SHL;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof BitRShift) {
         jop = JBinaryOperator.SHR;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof BitUnsignedRShift) {
         jop = JBinaryOperator.SHRU;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof BitAnd) {
         jop = JBinaryOperator.BIT_AND;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof BitOr) {
         jop = JBinaryOperator.BIT_OR;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else if (op instanceof BitXor) {
         jop = JBinaryOperator.BIT_XOR;
-        type = JPrimitiveType.INT;
+        type = promotedType(lhs.getType(), rhs.getType());
       } else {
         throw new RuntimeException("Uknown symbol " + op.symbol());
       }
@@ -1050,6 +1048,25 @@ public class JribbleAstBuilder {
       }
     }
     return AccessModifier.DEFAULT;
+  }
+
+  /** Determines the "max" type of {@code lhs} and {@code rhs}
+   *
+   * See http://java.sun.com/docs/books/jls/third_edition/html/conversions.html#170983.
+   */
+  private static JType promotedType(JType lhs, JType rhs) {
+    // unboxing is already taken care of on the scalac side
+    assert lhs instanceof JPrimitiveType;
+    assert rhs instanceof JPrimitiveType;
+    if (lhs == JPrimitiveType.DOUBLE || rhs == JPrimitiveType.DOUBLE) {
+      return JPrimitiveType.DOUBLE;
+    } else if (lhs == JPrimitiveType.FLOAT || rhs == JPrimitiveType.FLOAT) {
+      return JPrimitiveType.FLOAT;
+    } else if (lhs == JPrimitiveType.LONG || rhs == JPrimitiveType.LONG) {
+      return JPrimitiveType.LONG;
+    } else {
+      return JPrimitiveType.INT;
+    }
   }
 
 }
