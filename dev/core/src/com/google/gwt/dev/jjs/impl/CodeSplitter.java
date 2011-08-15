@@ -431,18 +431,6 @@ public class CodeSplitter {
     return maxTotalSize;
   }
 
-  private static Map<JField, JClassLiteral> buildFieldToClassLiteralMap(JProgram jprogram) {
-    final Map<JField, JClassLiteral> map = new HashMap<JField, JClassLiteral>();
-    class BuildFieldToLiteralVisitor extends JVisitor {
-      @Override
-      public void endVisit(JClassLiteral lit, Context ctx) {
-        map.put(lit.getField(), lit);
-      }
-    }
-    (new BuildFieldToLiteralVisitor()).accept(jprogram);
-    return map;
-  }
-
   /**
    * Compute the set of initially live code for this program. Such code must be
    * included in the initial download of the program.
@@ -620,7 +608,6 @@ public class CodeSplitter {
   }
 
   private final MultipleDependencyGraphRecorder dependencyRecorder;
-  private final Map<JField, JClassLiteral> fieldToLiteralOfClass;
   private final FragmentExtractor fragmentExtractor;
   private final LinkedHashSet<Integer> initialLoadSequence;
 
@@ -653,7 +640,6 @@ public class CodeSplitter {
 
     numEntries = jprogram.getRunAsyncs().size() + 1;
     logging = Boolean.getBoolean(PROP_LOG_FRAGMENT_MAP);
-    fieldToLiteralOfClass = buildFieldToClassLiteralMap(jprogram);
     fragmentExtractor = new FragmentExtractor(jprogram, jsprogram, map);
 
     initiallyLive = computeInitiallyLive(jprogram, dependencyRecorder);
@@ -861,25 +847,36 @@ public class CodeSplitter {
   }
 
   private void fixUpLoadOrderDependenciesForClassLiterals(ExclusivityMap fragmentMap) {
-    int numClassLitStrings = 0;
-    int numFixups = 0;
-    for (JField field : fragmentMap.fields.keySet()) {
-      JClassLiteral classLit = fieldToLiteralOfClass.get(field);
-      if (classLit != null) {
-        int classLitFrag = fragmentMap.fields.get(field);
+    int numStrings = 0;
+    int numStringFixups = 0;
+    int numSuperClasses = 0;
+    int numSuperClassFixups = 0;
+    for (JField field : jprogram.getTypeClassLiteralHolder().getFields()) {
+      int classLitFrag = getOrZero(fragmentMap.fields, field);
+      if (classLitFrag != 0) {
         for (String string : stringsIn(field.getInitializer())) {
-          numClassLitStrings++;
+          numStrings++;
           int stringFrag = getOrZero(fragmentMap.strings, string);
           if (stringFrag != classLitFrag && stringFrag != 0) {
-            numFixups++;
+            numStringFixups++;
             fragmentMap.strings.put(string, 0);
+          }
+        }
+        for (JClassLiteral otherLiteral: classLiteralsIn(field.getInitializer())) {
+          numSuperClasses++;
+          int otherLitFrag = getOrZero(fragmentMap.fields, otherLiteral.getField());
+          if (classLitFrag != otherLitFrag && otherLitFrag != 0) {
+            numSuperClassFixups++;
+            fragmentMap.fields.put(otherLiteral.getField(), 0);
           }
         }
       }
     }
     if (logger.isLoggable(TreeLogger.DEBUG)) {
-      logger.log(TreeLogger.DEBUG, "Fixed up load-order dependencies by moving " + numFixups
-          + " strings in class literal constructors to fragment 0, out of " + numClassLitStrings);
+      logger.log(TreeLogger.DEBUG, "Fixed up load-order dependencies by moving " + numStringFixups
+          + " strings in class literal constructors to fragment 0, out of " + numStrings);
+      logger.log(TreeLogger.DEBUG, "Fixed up load-order dependencies by moving " + numSuperClassFixups
+          + " class literal fields to fragment 0, out of " + numSuperClasses);
     }
   }
 
@@ -1020,5 +1017,20 @@ public class CodeSplitter {
     }
     (new StringFinder()).accept(exp);
     return strings;
+  }
+
+  /**
+   * Traverse <code>exp</code> and find all class literals within it.
+   */
+  private Set<JClassLiteral> classLiteralsIn(JExpression exp) {
+    final Set<JClassLiteral> literals = new HashSet<JClassLiteral>();
+    class ClassLiteralFinder extends JVisitor {
+      @Override
+      public void endVisit(JClassLiteral classLiteral, Context ctx) {
+        literals.add(classLiteral);
+      }
+    }
+    (new ClassLiteralFinder()).accept(exp);
+    return literals;
   }
 }
