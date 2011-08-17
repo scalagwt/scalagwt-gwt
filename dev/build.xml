@@ -113,6 +113,10 @@
           <include name="guava/guava-r06/guava-r06-rebased-2.jar" />
         </fileset>
         <fileset file="build.xml"/>
+        <fileset dir="${gwt.root}/scalagwt-lib">
+          <include name="jribble_2.9.0-1-0.1-SNAPSHOT.jar"/>
+          <include name="scala-library.jar"/>
+        </fileset>
       </sourcefiles>
       <targetfiles>
         <fileset file="${alldeps.jar}"/>
@@ -175,6 +179,8 @@
           <!-- htmlunit dependencies not already included: END -->
           <zipfileset src="${gwt.tools.lib}/sun/swingworker/swing-worker-1.1.jar" />
           <zipfileset src="${gwt.tools.lib}/guava/guava-r06/guava-r06-rebased-2.jar" />
+          <zipfileset src="${gwt.root}/scalagwt-lib/jribble_2.9.0-1-0.1-SNAPSHOT.jar" />
+          <zipfileset src="${gwt.root}/scalagwt-lib/scala-library.jar" />
         </gwt.jar>
       </sequential>
     </outofdate>
