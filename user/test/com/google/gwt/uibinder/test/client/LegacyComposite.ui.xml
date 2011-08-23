@@ -11,12 +11,9 @@
 <!-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or        -->
 <!-- implied. License for the specific language governing permissions and   -->
 <!-- limitations under the License.                                         -->
-
-<!-- Types and resources required to support primitive system operation.    -->
-<!--                                                                        -->
-<!-- Types from this module are visible to and imported into user code.     -->
-<!-- Every module should directly or indirectly inherit this module.        -->
-<!--                                                                        -->
-<module>
-  <inherits name="com.google.gwt.core.Core" />
-</module>
+<ui:UiBinder
+  xmlns:ui="urn:ui:com.google.gwt.uibinder"
+  xmlns:gwt="urn:import:com.google.gwt.user.client.ui"
+  >
+  <gwt:HTML>When does this <span ui:field='span'>span</span> get filled?</gwt:HTML>
+</ui:UiBinder>
