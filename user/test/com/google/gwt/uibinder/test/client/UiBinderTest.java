@@ -152,21 +152,6 @@ public class UiBinderTest extends GWTTestCase {
     assertEquals(foo.getText(), widgetUi.theFoo.getText());
   }
 
-  public void testBundleLegacyBeansText() {
-    assertEquals(widgetUi.legacyValuesForBeans.helloText(),
-        widgetUi.bundledLabelLegacy.getText());
-  }
-
-  public void testBundleLegacyBeansOther() {
-    assertEquals(widgetUi.legacyValuesForBeans.helloText(),
-        widgetUi.bundledLabelLegacy.getStyleName());
-  }
-
-  public void testBundleLegacyHtml() {
-    assertEquals(widgetUi.legacyValuesForHtml.helloText(),
-        widgetUi.bundledDivLegacy.getClassName());
-  }
-
   public void testCenter() {
     // TODO(rjrjr) More of a test of HTMLPanelParser
 
@@ -564,7 +549,7 @@ public class UiBinderTest extends GWTTestCase {
   }
 
   public void testDataResource() {
-    assertNotNull(widgetUi.heartCursorResource.getUrl());
+    assertNotNull(widgetUi.heartCursorResource.getSafeUri());
   }
 
   public void testCssImportedScopes() {
@@ -608,12 +593,10 @@ public class UiBinderTest extends GWTTestCase {
   }
 
   public void testAlignmentAttributes() {
-    assertEquals(
-      widgetUi.myHorizontalPanel.getHorizontalAlignment().getTextAlignString(),
-      "left");
-    assertEquals(
-      widgetUi.myHorizontalPanel.getVerticalAlignment().getVerticalAlignString(),
-      "middle");
+    assertEquals("left",
+      widgetUi.myHorizontalPanel.getHorizontalAlignment().getTextAlignString());
+    assertEquals("middle",
+      widgetUi.myHorizontalPanel.getVerticalAlignment().getVerticalAlignString());
 
     final String innerHtml = 
       widgetUi.myHorizontalPanel.getElement().getInnerHTML();
@@ -629,12 +612,12 @@ public class UiBinderTest extends GWTTestCase {
   }
   
   public void testUiTextWithSafeHtml() {
-    assertEquals(widgetUi.htmlWithComputedSafeHtml.getHTML().toLowerCase(),
-        "<b>this text should be bold!</b>");
-    assertEquals(widgetUi.htmlWithComputedText.getHTML().toLowerCase()
-        .replaceAll(">", "&gt;"), "&lt;b&gt;this text won't be bold!&lt;/b&gt;");
-    assertEquals(widgetUi.labelWithComputedText.getText().toLowerCase(),
-        "<b>this text won't be bold!</b>");
+    assertEquals("<b>this text should be bold!</b>",
+        widgetUi.htmlWithComputedSafeHtml.getHTML().toLowerCase());
+    assertEquals("&lt;b&gt;this text won't be bold!&lt;/b&gt;",
+        widgetUi.htmlWithComputedText.getHTML().toLowerCase().replaceAll(">", "&gt;"));
+    assertEquals("<b>this text won't be bold!</b>",
+        widgetUi.labelWithComputedText.getText().toLowerCase());
   }
   
   /**
