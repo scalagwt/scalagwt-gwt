@@ -153,10 +153,6 @@ abstract class AbstractFieldWriter implements FieldWriter {
     }
 
     for (FieldWriter f : needs) {
-      // TODO(rdamazio, rjrjr) This is simplistic, and will fail when
-      // we support more interesting contexts (e.g. the same need being used
-      // inside two different
-      // LazyPanels)
       f.write(w);
     }
 
@@ -183,7 +179,7 @@ abstract class AbstractFieldWriter implements FieldWriter {
 
   @Override
   public void writeFieldBuilder(IndentedWriter w, int getterCount,
-    OwnerField ownerField) throws UnableToCompleteException {
+    OwnerField ownerField) {
     if (getterCount > 1) {
       w.write("%s;  // more than one getter call detected. Type: %s, precedence: %s",
             FieldManager.getFieldBuilder(name), getFieldType(), getBuildPrecedence());

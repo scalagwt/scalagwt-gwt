@@ -20,7 +20,7 @@
   <source path="">
     <include name="*.java" />
   </source>
-  <replace-with class="org.hibernate.jsr303.tck.tests.messageinterpolation.TckUserValidationMessageProvider">
+  <replace-with class="org.hibernate.jsr303.tck.tests.messageinterpolation.TckUserValidationMessageResolver">
     <when-type-is class="com.google.gwt.validation.client.UserValidationMessagesResolver" />
   </replace-with>
   <replace-with class="org.hibernate.jsr303.tck.tests.messageinterpolation.TckTestValidatorFactory">

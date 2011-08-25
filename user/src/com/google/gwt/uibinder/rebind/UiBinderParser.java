@@ -295,7 +295,7 @@ public class UiBinderParser {
       }
 
       if (ownerField.isProvided()) {
-        createResourceUiField(resourceName, resourceType, ownerField);
+        createResourceUiField(resourceName, ownerField);
         return;
       } else {
         // Let's keep trying, but we know the type at least.
@@ -344,8 +344,7 @@ public class UiBinderParser {
     fieldWriter.setInitializer(initializer);
   }
 
-  private void createResourceUiField(String resourceName, JClassType resourceType,
-      OwnerField ownerField)
+  private void createResourceUiField(String resourceName, OwnerField ownerField)
       throws UnableToCompleteException {
     FieldWriter fieldWriter;
     String initializer;
@@ -375,7 +374,7 @@ public class UiBinderParser {
 
     fieldWriter = fieldManager.registerField(
         FieldWriterType.IMPORTED, matchingResourceType.getErasedType(), resourceName);
-    fieldWriter.setInitializer("this." + resourceName);
+    fieldWriter.setInitializer(UiBinderWriter.RENDER_PARAM_HOLDER_PREFIX + resourceName);
   }
 
   private void createSingleImport(XMLElement elem, JClassType enclosingType,

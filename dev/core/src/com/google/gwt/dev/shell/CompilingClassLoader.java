@@ -50,6 +50,7 @@ import org.apache.commons.collections.map.AbstractReferenceMap;
 import org.apache.commons.collections.map.ReferenceIdentityMap;
 import org.apache.commons.collections.map.ReferenceMap;
 
+import java.beans.Beans;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -1176,6 +1177,11 @@ public final class CompilingClassLoader extends ClassLoader implements
    */
   @Override
   protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+    // at design time we want to provide parent ClassLoader, so keep default implementation
+    if (Beans.isDesignTime()) {
+      return super.loadClass(name, resolve);
+    }
+
     Class c = findLoadedClass(name);
     if (c != null) {
       if (resolve) {
