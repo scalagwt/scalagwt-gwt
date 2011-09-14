@@ -1,6 +1,6 @@
-package com.google.gwt.dev.jjs.impl;
+package com.google.gwt.dev.jjs.impl.jribble;
 
-import static com.google.gwt.dev.jjs.impl.AstUtils.toRef;
+import static com.google.gwt.dev.jjs.impl.jribble.AstUtils.toRef;
 
 import com.google.gwt.dev.javac.MethodArgNamesLookup;
 import com.google.gwt.dev.jjs.ast.JBinaryOperation;
@@ -14,6 +14,8 @@ import com.google.gwt.dev.jjs.ast.JMethodCall;
 import com.google.gwt.dev.jjs.ast.JNewArray;
 import com.google.gwt.dev.jjs.ast.JNode;
 import com.google.gwt.dev.jjs.ast.JPrimitiveType;
+import com.google.gwt.dev.jjs.impl.SourceGenerationVisitor;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleAstBuilder;
 import com.google.gwt.dev.util.AbstractTextOutput;
 import com.google.gwt.dev.util.TextOutput;
 import com.google.jribble.ast.Array;

@@ -1,4 +1,4 @@
-package com.google.gwt.dev.jjs.impl;
+package com.google.gwt.dev.jjs.impl.jribble;
 
 import com.google.jribble.ast.Ref;
 import com.google.jribble.ast.Package;
