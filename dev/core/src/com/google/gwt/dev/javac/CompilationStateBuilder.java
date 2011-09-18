@@ -60,8 +60,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 
 /**
@@ -499,28 +497,15 @@ public class CompilationStateBuilder {
   }
 
   private static byte[] readBytes(CompilationUnitBuilder cub) {
-    String scalaLibrary = System.getProperty("gwt.scalalibrary.path");
-    if (scalaLibrary == null) {
-      throw new InternalCompilerException("gwt.scalalibrary.path property is not set");
-    }
     String classFile = cub.getTypeName().replace('.', '/') + ".class";
     try {
-      File file = new File(scalaLibrary);
-      assert file.exists();
-      JarFile jarFile = new JarFile(file);
-      JarEntry jarEntry = jarFile.getJarEntry(classFile);
-      InputStream in;
-      if (jarEntry != null) {
-        in = jarFile.getInputStream(jarEntry);
-      } else {
-        in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
-      }
+      InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
       if (in != null) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Util.copy(in, out); // does close
         return out.toByteArray();
       } else {
-        throw new RuntimeException("Class file not found: " + classFile);
+        throw new InternalCompilerException("Class file not found: " + classFile);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
