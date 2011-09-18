@@ -35,7 +35,6 @@ import com.google.gwt.dev.util.log.speedtracer.DevModeEventType;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.Event;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.EventType;
-import com.google.jribble.ast.DeclaredType;
 
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
@@ -359,7 +358,7 @@ public class CompilationStateBuilder {
         try {
         CompiledClass cc =
             new CompiledClass(readBytes(cub), null, false, BinaryName.toInternalName(cub.getTypeName()));
-        DeclaredType declaredType = JribbleParser.parse(logger, cub.getTypeName(), cub.getSource());
+        com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.DeclaredType declaredType = JribbleParser.parse(logger, cub.getTypeName(), cub.getSource());
         JribbleAstBuilder.Result result = jribbleAstBuilder.process(declaredType);
         cub.setTypes(result.types);
         cub.setDependencies(Dependencies.buildFromApiRefs(cc.getPackageName(), newArrayList(result.apiRefs)));

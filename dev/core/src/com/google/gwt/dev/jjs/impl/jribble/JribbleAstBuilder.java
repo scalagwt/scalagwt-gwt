@@ -39,7 +39,6 @@ import com.google.gwt.dev.jjs.ast.JDeclarationStatement;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.ast.JDoubleLiteral;
 import com.google.gwt.dev.jjs.ast.JExpression;
-import com.google.gwt.dev.jjs.ast.JExpressionStatement;
 import com.google.gwt.dev.jjs.ast.JField;
 import com.google.gwt.dev.jjs.ast.JField.Disposition;
 import com.google.gwt.dev.jjs.ast.AccessModifier;
@@ -80,79 +79,11 @@ import com.google.gwt.dev.jjs.ast.JVariableRef;
 import com.google.gwt.dev.jjs.ast.JWhileStatement;
 import com.google.gwt.dev.util.StringInterner;
 import com.google.gwt.dev.util.Name.BinaryName;
-import com.google.jribble.ast.And;
-import com.google.jribble.ast.ArrayInitializer;
-import com.google.jribble.ast.ArrayLength;
-import com.google.jribble.ast.ArrayRef;
-import com.google.jribble.ast.Assignment;
-import com.google.jribble.ast.BinaryOp;
-import com.google.jribble.ast.BitAnd;
-import com.google.jribble.ast.BitLShift;
-import com.google.jribble.ast.BitNot;
-import com.google.jribble.ast.BitOr;
-import com.google.jribble.ast.BitRShift;
-import com.google.jribble.ast.BitUnsignedRShift;
-import com.google.jribble.ast.BitXor;
-import com.google.jribble.ast.Block;
-import com.google.jribble.ast.BooleanLiteral;
-import com.google.jribble.ast.Break;
-import com.google.jribble.ast.Cast;
-import com.google.jribble.ast.CharLiteral;
-import com.google.jribble.ast.ClassDef;
-import com.google.jribble.ast.ClassOf;
-import com.google.jribble.ast.Conditional;
-import com.google.jribble.ast.Constructor;
-import com.google.jribble.ast.ConstructorCall;
-import com.google.jribble.ast.Continue;
-import com.google.jribble.ast.DeclaredType;
-import com.google.jribble.ast.Divide;
-import com.google.jribble.ast.DoubleLiteral;
-import com.google.jribble.ast.Equal;
-import com.google.jribble.ast.Expression;
-import com.google.jribble.ast.FieldDef;
-import com.google.jribble.ast.FieldRef;
-import com.google.jribble.ast.FloatLiteral;
-import com.google.jribble.ast.Greater;
-import com.google.jribble.ast.GreaterOrEqual;
-import com.google.jribble.ast.If;
-import com.google.jribble.ast.InstanceOf;
-import com.google.jribble.ast.IntLiteral;
-import com.google.jribble.ast.InterfaceDef;
-import com.google.jribble.ast.Lesser;
-import com.google.jribble.ast.LesserOrEqual;
-import com.google.jribble.ast.Literal;
-import com.google.jribble.ast.LongLiteral;
-import com.google.jribble.ast.MethodCall;
-import com.google.jribble.ast.MethodDef;
-import com.google.jribble.ast.Minus;
-import com.google.jribble.ast.Modulus;
-import com.google.jribble.ast.Multiply;
-import com.google.jribble.ast.NewArray;
-import com.google.jribble.ast.NewCall;
-import com.google.jribble.ast.Not;
-import com.google.jribble.ast.NotEqual;
-import com.google.jribble.ast.NullLiteral$;
-import com.google.jribble.ast.Or;
-import com.google.jribble.ast.ParamDef;
-import com.google.jribble.ast.Plus;
-import com.google.jribble.ast.Ref;
-import com.google.jribble.ast.Return;
-import com.google.jribble.ast.Signature;
-import com.google.jribble.ast.Statement;
-import com.google.jribble.ast.StaticFieldRef;
-import com.google.jribble.ast.StaticMethodCall;
-import com.google.jribble.ast.StringLiteral;
-import com.google.jribble.ast.SuperRef$;
-import com.google.jribble.ast.Switch;
-import com.google.jribble.ast.ThisRef$;
-import com.google.jribble.ast.Throw;
-import com.google.jribble.ast.Try;
-import com.google.jribble.ast.Type;
-import com.google.jribble.ast.UnaryMinus;
-import com.google.jribble.ast.UnaryOp;
-import com.google.jribble.ast.VarDef;
-import com.google.jribble.ast.VarRef;
-import com.google.jribble.ast.While;
+
+import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.Declaration.DeclarationType;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.Expr.ExprType;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.Statement.StatementType;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -162,10 +93,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-
-import scala.Option;
-import scala.Tuple2;
-import scala.Tuple3;
 
 /**
  * Class that transforms jribble AST into a per-CompilationUnit GWT mini AST.
@@ -221,15 +148,12 @@ public class JribbleAstBuilder {
   /** Creates a non-external type AST and puts it in the mapper. */
   private void createType(DeclaredType jrType) {
     JDeclaredType gwtType;
-    if (jrType instanceof ClassDef) {
-      ClassDef jrClassDef = (ClassDef) jrType;
-      boolean isAbstract = jrClassDef.modifs().contains("abstract");
-      boolean isFinal = jrClassDef.modifs().contains("final");
-      gwtType = new JClassType(UNKNOWN, intern(jrClassDef.name().javaName()), isAbstract, isFinal);
-    } else if (jrType instanceof InterfaceDef) {
-      gwtType = new JInterfaceType(UNKNOWN, intern(jrType.name().javaName()));
+    if (!jrType.getIsInterface()) {
+      boolean isAbstract = jrType.getModifiers().getIsAbstract();
+      boolean isFinal = jrType.getModifiers().getIsFinal();
+      gwtType = new JClassType(UNKNOWN, javaName(jrType.getName()), isAbstract, isFinal);
     } else {
-      throw new RuntimeException("Unhandled type " + jrType);
+      gwtType = new JInterfaceType(UNKNOWN, javaName(jrType.getName()));
     }
     // would add inner classes here if we had them all in a single CompilationUnit
     mapper.setSourceType(jrType, gwtType);
@@ -238,37 +162,31 @@ public class JribbleAstBuilder {
 
   /** Creates potentially-external ASTs for our AST's super class and interfaces. */
   private void resolveTypeRefs(DeclaredType jrType) {
-    if (jrType instanceof ClassDef) {
-      ClassDef jrClassDef = (ClassDef) jrType;
-      JClassType gwtClassType = mapper.getClassType(jrType.name().javaName());
-      if (jrClassDef.ext().isDefined()) {
-        gwtClassType.setSuperClass(mapper.getClassType(jrClassDef.ext().get().javaName()));
+    if (!jrType.getIsInterface()) {
+      JClassType gwtClassType = mapper.getClassType(javaName(jrType.getName()));
+      if (jrType.hasExt()) {
+        gwtClassType.setSuperClass(mapper.getClassType(javaName(jrType.getExt())));
       } else {
         // package objects sometimes? don't have super classes but should in GWT
         gwtClassType.setSuperClass(mapper.getClassType("java.lang.Object"));
       }
-      for (Ref ref : jrClassDef.jimplements()) {
-        gwtClassType.addImplements(mapper.getInterfaceType(ref.javaName()));
-      }
-    } else if (jrType instanceof InterfaceDef) {
-      InterfaceDef jrIntDef = (InterfaceDef) jrType;
-      JInterfaceType gwtIntType = mapper.getInterfaceType(jrType.name().javaName());
-      for (Ref ref : jrIntDef.jext()) {
-        gwtIntType.addImplements(mapper.getInterfaceType(ref.javaName()));
+      for (GlobalName name : jrType.getImplementsList()) {
+        gwtClassType.addImplements(mapper.getInterfaceType(javaName(name)));
       }
     } else {
-      throw new RuntimeException("Unhandled type " + jrType);
+      JInterfaceType gwtIntType = mapper.getInterfaceType(javaName(jrType.getName()));
+      for (GlobalName name : jrType.getImplementsList()) {
+        gwtIntType.addImplements(mapper.getInterfaceType(javaName(name)));
+      }
     }
   }
 
   private void createMembers(DeclaredType jrType) {
     JDeclaredType gwtType;
-    if (jrType instanceof ClassDef) {
-      gwtType = mapper.getClassType(jrType.name().javaName());
-    } else if (jrType instanceof InterfaceDef) {
-      gwtType = mapper.getInterfaceType(jrType.name().javaName());
+    if (!jrType.getIsInterface()) {
+      gwtType = mapper.getClassType(javaName(jrType.getName()));
     } else {
-      throw new RuntimeException("Unhandled type " + jrType);
+      gwtType = mapper.getInterfaceType(javaName(jrType.getName()));
     }
 
     assert gwtType.getMethods().size() == 0;
@@ -283,19 +201,14 @@ public class JribbleAstBuilder {
       // https://github.com/scalagwt/scalagwt-gwt/issues/8
       assert gwtType.getMethods().size() == 2;
       createSyntheticMethod(UNKNOWN, "getClass", gwtType, javaLangClass, false, false, false, false);
-
-      for (FieldDef jrField : ((ClassDef) jrType).jfieldDefs()) {
-        createField(gwtType, (ClassDef) jrType, jrField);
-      }
-      for (MethodDef jrMethod : ((ClassDef) jrType).jmethodDefs()) {
-        createMethod(gwtType, jrType, jrMethod);
-      }
-      for (Constructor cstr : ((ClassDef) jrType).jconstructors()) {
-        createConstructor(gwtType, jrType, cstr);
+      
+      for (Declaration m : jrType.getMemberList()) {
+        createDeclaration(gwtType, jrType, m);
       }
     } else if (gwtType instanceof JInterfaceType) {
-      for (MethodDef jrMethod : ((InterfaceDef) jrType).jbody()) {
-        createMethod(gwtType, jrType, jrMethod);
+      for (Declaration m : jrType.getMemberList()) {
+        assert m.getType() == DeclarationType.Method;
+        createDeclaration(gwtType, jrType, m);
       }
     } else {
       throw new RuntimeException("Unhandled type " + gwtType);
@@ -304,61 +217,53 @@ public class JribbleAstBuilder {
   }
 
   private void buildTheCode(DeclaredType jrType) {
-    if (jrType instanceof ClassDef) {
-      new AstWalker().classDef((ClassDef) jrType);
-    } else if (jrType instanceof InterfaceDef) {
-      // interfaces already have their methods created from createMembers
-    } else {
-      throw new RuntimeException("Unhandled type " + jrType);
+    if (!jrType.getIsInterface()) {
+      new AstWalker().classDef(jrType);
     }
+    // interfaces already have their methods created from createMembers
   }
-
-  /** Creates a field, without the allocation yet. */
-  private void createField(JDeclaredType enclosingType, ClassDef jrClassDef, FieldDef jrField) {
-    boolean isStatic = jrField.modifs().contains("static");
-    JType type = mapper.getType(jrField.typ());
-    JField field =
-        new JField(UNKNOWN, intern(jrField.name()), enclosingType, type, isStatic,
-            getFieldDisposition(jrField));
-    enclosingType.addField(field);
-    mapper.setSourceField(jrClassDef, jrField, field);
-  }
-
-  /** Creates a source method, without the code inside yet. */
-  private void createMethod(JDeclaredType gwtType, DeclaredType jrType, MethodDef jrMethod) {
-    boolean isAbstract = jrMethod.modifs().contains("abstract") || jrType instanceof InterfaceDef;
-    boolean isStatic = jrMethod.modifs().contains("static");
-    boolean isFinal = jrMethod.modifs().contains("final");
-    JMethod method =
-        new JMethod(UNKNOWN, jrMethod.name(), gwtType, mapper.getType(jrMethod.returnType()),
-            isAbstract, isStatic, isFinal, access(jrMethod.modifs()));
-    for (ParamDef param : jrMethod.jparams()) {
-      // param modifs?
-      method.addParam(new JParameter(UNKNOWN, param.name(), mapper.getType(param.typ()), false,
-          false, method));
+  
+  private void createDeclaration(JDeclaredType enclosingType, DeclaredType jrDeclType, Declaration decl) {
+    Modifiers mod = decl.getModifiers();
+    boolean isAbstract = mod.getIsAbstract() || jrDeclType.getIsInterface();
+    boolean isStatic = mod.getIsStatic();
+    boolean isFinal = mod.getIsFinal();
+    switch (decl.getType()) {
+      /** Creates a field, without the allocation yet. */
+      case Field:
+        FieldDef jrField = decl.getFieldDef();
+        JType type = mapper.getType(jrField.getTpe());
+        JField field =
+            new JField(UNKNOWN, intern(jrField.getName()), enclosingType, type, isStatic,
+                getFieldDisposition(decl));
+        enclosingType.addField(field);
+        mapper.setSourceField(jrDeclType, jrField, field);
+        break;
+      /** Creates a source method/constructor, without the code inside yet. */
+      case Method:
+        Method m = decl.getMethod();
+        JMethod method;
+        if (m.getIsConstructor()) {
+          method = new JConstructor(UNKNOWN, (JClassType) enclosingType);
+          method.setBody(new JMethodBody(UNKNOWN));
+          //constructor logic
+        } else {
+          method = new JMethod(UNKNOWN, m.getName(), enclosingType, mapper.getType(
+              m.getReturnType()), isAbstract, isStatic, isFinal, access(mod));
+          if (!jrDeclType.getIsInterface()) {
+            method.setBody(new JMethodBody(UNKNOWN));
+          }
+        }
+        for (ParamDef param : m.getParamDefList()) {
+          // param modifs?
+          method.addParam(new JParameter(UNKNOWN, param.getName(), 
+              mapper.getType(param.getTpe()), false, false, method));
+        }
+        method.freezeParamTypes();
+        enclosingType.addMethod(method);
+        methodArgNames.store(enclosingType.getName(), method);
+        mapper.setSourceMethod(signature(jrDeclType, m), method);
     }
-    method.freezeParamTypes();
-    if (jrType instanceof ClassDef) {
-      method.setBody(new JMethodBody(UNKNOWN));
-    }
-    gwtType.addMethod(method);
-    methodArgNames.store(gwtType.getName(), method);
-    mapper.setSourceMethod(jrMethod.signature(jrType.name()), method);
-  }
-
-  /** Creates a source cstr, without the code inside yet. */
-  private void createConstructor(JDeclaredType gwtType, DeclaredType jrType, Constructor cstr) {
-    JConstructor method = new JConstructor(UNKNOWN, (JClassType) gwtType);
-    for (ParamDef param : cstr.jparams()) {
-      // param modifs?
-      method.addParam(new JParameter(UNKNOWN, param.name(), mapper.getType(param.typ()), false,
-          false, method));
-    }
-    method.freezeParamTypes();
-    gwtType.addMethod(method);
-    methodArgNames.store(gwtType.getName(), method);
-    method.setBody(new JMethodBody(UNKNOWN));
-    mapper.setSourceMethod(cstr.signature(jrType.name()), method);
   }
 
   private static final class LocalStack {
@@ -428,24 +333,31 @@ public class JribbleAstBuilder {
       return enclosingBody;
     }
   }
+  
+  private static boolean isConstructorCall(Statement x) {
+    if (x.getType() == StatementType.Expr && x.getExpr().getType() == ExprType.MethodCall) {
+      return x.getExpr().getMethodCall().getSignature().getName() == "new";
+    } else {
+      return false;
+    }
+  }
 
   /** Given a top-level ClassDef/InterfaceDef, creates a full GWT AST. */
   private class AstWalker {
 
-    private final Expression superRef = SuperRef$.MODULE$;
-
-    private JExpressionStatement assignment(Assignment assignment, LocalStack local) {
-      JExpression lhs = expression(assignment.lhs(), local);
-      JExpression rhs = expression(assignment.rhs(), local);
-      return JProgram.createAssignmentStmt(UNKNOWN, lhs, rhs);
+    private JExpression assignment(Assignment assignment, LocalStack local) {
+      JExpression lhs = expression(assignment.getLhs(), local);
+      JExpression rhs = expression(assignment.getRhs(), local);
+      return new JBinaryOperation(UNKNOWN, lhs.getType(), JBinaryOperator.ASG, lhs, rhs);
     }
 
     private void block(Block block, JBlock jblock, LocalStack local) {
       local.pushBlock();
-      for (Statement x : block.jstatements()) {
+      for (Statement x : block.getStatementList()) {
         final JStatement js;
-        if (x instanceof ConstructorCall) {
-          js = constructorCall((ConstructorCall) x, local).makeStatement();
+        if (isConstructorCall(x)) {
+          MethodCall m = x.getExpr().getMethodCall();
+          js = constructorCall(m.getSignature(), m.getArgumentList(), local).makeStatement();
         } else {
           js = methodStatement(x, local);
         }
@@ -454,18 +366,23 @@ public class JribbleAstBuilder {
       local.popBlock();
     }
 
-    private void classDef(ClassDef def) {
-      JClassType clazz = (JClassType) mapper.getClassType(def.name().javaName());
+    private void classDef(DeclaredType def) {
+      assert !def.getIsInterface();
+      JClassType clazz = (JClassType) mapper.getClassType(javaName(def.getName()));
       assert !clazz.isExternal();
       try {
-        for (Constructor i : def.jconstructors()) {
-          constructor(i, def, clazz);
-        }
-        for (MethodDef i : def.jmethodDefs()) {
-          methodDef(i, clazz, def);
-        }
-        for (FieldDef i : def.jfieldDefs()) {
-          fieldDef(i, def, clazz);
+        for (Declaration x : def.getMemberList()) {
+          switch (x.getType()) {
+            case Field:
+              fieldDef(x, def, clazz);
+              break;
+            case Method:
+              if (x.getMethod().getIsConstructor()) {
+                constructor(x, def, clazz);
+              } else {
+                methodDef(x, clazz, def);
+              }
+          }
         }
         addClinitSuperCall(clazz);
         implementGetClass(clazz);
@@ -475,10 +392,12 @@ public class JribbleAstBuilder {
       }
     }
 
-    private void fieldDef(FieldDef fieldDef, ClassDef classDef, JClassType enclosingClass) {
-      JField field =
-          mapper.getField(classDef.name().javaName(), fieldDef.name(), fieldDef.modifs().contains(
-              "static"));
+    private void fieldDef(Declaration decl, DeclaredType classDef, JClassType enclosingClass) {
+      assert !classDef.getIsInterface();
+      assert decl.getType() == DeclarationType.Field;
+      FieldDef fieldDef = decl.getFieldDef();
+      JField field = mapper.getField(javaName(classDef.getName()), fieldDef.getName(), 
+          decl.getModifiers().getIsStatic());
       assert !field.isExternal();
       JMethod method;
       JFieldRef fieldRef;
@@ -493,24 +412,27 @@ public class JribbleAstBuilder {
         assert method.getName().equals("$init");
       }
       JMethodBody body = (JMethodBody) method.getBody();
-      if (fieldDef.value().isDefined()) {
+      if (fieldDef.hasInitializer()) {
         LocalStack local = new LocalStack(enclosingClass, body, new HashMap<String, JParameter>());
         local.pushBlock();
-        JExpression expr = expression(fieldDef.value().get(), local);
-        JStatement decl = new JDeclarationStatement(UNKNOWN, fieldRef, expr);
-        body.getBlock().addStmt(decl);
+        JExpression expr = expression(fieldDef.getInitializer(), local);
+        JStatement declStmt = new JDeclarationStatement(UNKNOWN, fieldRef, expr);
+        body.getBlock().addStmt(declStmt);
       }
     }
 
     private JConditional conditional(Conditional conditional, LocalStack local) {
-      JExpression condition = expression(conditional.condition(), local);
-      JExpression then = expression(conditional.then(), local);
-      JExpression elsee = expression(conditional.elsee(), local);
-      return new JConditional(UNKNOWN, mapper.getType(conditional.typ()), condition, then, elsee);
+      JExpression condition = expression(conditional.getCondition(), local);
+      JExpression then = expression(conditional.getThen(), local);
+      JExpression elsee = expression(conditional.getElsee(), local);
+      return new JConditional(UNKNOWN, mapper.getType(conditional.getTpe()), condition, then, elsee);
     }
 
-    private void constructor(Constructor constructor, ClassDef classDef, JClassType enclosingClass) {
-      JMethod jc = mapper.getMethod(constructor.signature(classDef.name()), false, true);
+    private void constructor(Declaration decl, DeclaredType classDef, JClassType enclosingClass) {
+      assert decl.getType() == DeclarationType.Method;
+      Method m = decl.getMethod();
+      assert m.getIsConstructor();
+      JMethod jc = mapper.getMethod(signature(classDef, m), false, true);
       Map<String, JParameter> params = new HashMap<String, JParameter>();
       for (JParameter x : jc.getParams()) {
         params.put(x.getName(), x);
@@ -519,57 +441,51 @@ public class JribbleAstBuilder {
       LocalStack local = new LocalStack(enclosingClass, body, params);
       local.pushBlock();
       JBlock jblock = body.getBlock();
-      if (!hasConstructorCall(classDef, constructor.body())) {
+      if (!hasConstructorCall(classDef, m.getBody())) {
         JMethod initMethod = jc.getEnclosingType().getMethods().get(1);
         jblock.addStmt(new JMethodCall(UNKNOWN, thisRef((JClassType) jc.getEnclosingType()),
             initMethod).makeStatement());
       }
-      block(constructor.body(), jblock, local);
+      flatten(m.getBody(), jblock, local);
+    }
+    
+    private void flatten(Statement stmt, JBlock jblock, LocalStack local) {
+      if (stmt.getType() == StatementType.Block) {
+        block(stmt.getBlock(), jblock, local);
+      } else {
+        jblock.addStmt(methodStatement(stmt, local));
+      }
     }
 
-    private JExpression expression(Expression expr, LocalStack local) {
-      if (expr instanceof Literal) {
-        return literal((Literal) expr);
-      } else if (expr instanceof VarRef) {
-        return varRef((VarRef) expr, local);
-      } else if (expr instanceof ThisRef$) {
-        return thisRef(local.getEnclosingType());
-      } else if (expr instanceof MethodCall) {
-        return methodCall((MethodCall) expr, local);
-      } else if (expr instanceof StaticMethodCall) {
-        return staticMethodCall((StaticMethodCall) expr, local);
-      } else if (expr instanceof VarRef) {
-        return varRef((VarRef) expr, local);
-      } else if (expr instanceof NewCall) {
-        return newCall((NewCall) expr, local);
-      } else if (expr instanceof Conditional) {
-        return conditional((Conditional) expr, local);
-      } else if (expr instanceof Cast) {
-        return cast((Cast) expr, local);
-      } else if (expr instanceof BinaryOp) {
-        return binaryOp((BinaryOp) expr, local);
-      } else if (expr instanceof FieldRef) {
-        return fieldRef((FieldRef) expr, local);
-      } else if (expr instanceof StaticFieldRef) {
-        return staticFieldRef((StaticFieldRef) expr, local);
-      } else if (expr instanceof ArrayRef) {
-        return arrayRef((ArrayRef) expr, local);
-      } else if (expr instanceof NewArray) {
-        return newArray((NewArray) expr, local);
-      } else if (expr instanceof ArrayLength) {
-        return arrayLength((ArrayLength) expr, local);
-      } else if (expr instanceof InstanceOf) {
-        return instanceOf((InstanceOf) expr, local);
-      } else if (expr instanceof ClassOf) {
-        return new JClassLiteral(UNKNOWN, mapper.getType(((ClassOf) expr).typ()));
-      } else if (expr instanceof ArrayInitializer) {
-        return arrayInitializer((ArrayInitializer) expr, local);
-      } else if (expr instanceof UnaryOp) {
-        return unaryOp((UnaryOp) expr, local);
-      } else if (expr instanceof SuperRef$) {
-        return superRef(local);
-      } else {
-        throw new RuntimeException("to be implemented handling of " + expr);
+    private JExpression expression(Expr expr, LocalStack local) {
+      switch (expr.getType()) {
+        case Literal:    return literal(expr.getLiteral());
+        case VarRef:     return varRef(expr.getVarRef(), local);
+        case ThisRef:    return thisRef(local.getEnclosingType());
+        case MethodCall: return methodCall(expr.getMethodCall(), local);
+        case NewObject:  return newCall(expr.getNewObject(), local);
+        case NewArray:   
+          return newArray(expr.getNewArray(), local);
+        case Conditional:
+          return conditional(expr.getConditional(), local);
+        case Cast:       return cast(expr.getCast(), local);
+        case Binary:     return binaryOp(expr.getBinary(), local);
+        case FieldRef:   
+          return fieldRef(expr.getFieldRef(), local);
+        case ArrayRef:   return arrayRef(expr.getArrayRef(), local);
+        case ArrayLength: return arrayLength(expr.getArrayLength(), local);
+        case InstanceOf: return instanceOf(expr.getInstanceOf(), local);
+        case ClassLiteral:
+          return new JClassLiteral(UNKNOWN, mapper.getType(
+              expr.getClassLiteral().getTpe()));
+        case Unary:      
+          return unaryOp(expr.getUnary(), local);
+        case SuperRef:   return superRef(local);
+        case Assignment:
+          return assignment(expr.getAssignment(), local);
+        default:
+          throw new InternalCompilerException("Unknown jribble expression type " +
+              expr.getType().getValueDescriptor().getFullName());
       }
     }
 
@@ -579,361 +495,328 @@ public class JribbleAstBuilder {
       return thisRef(local.getEnclosingType());
     }
 
-    private JExpression unaryOp(UnaryOp expr, LocalStack local) {
+    private JExpression unaryOp(Unary jrOp, LocalStack local) {
       JUnaryOperator op;
-      if (expr instanceof UnaryMinus) {
-        op = JUnaryOperator.NEG;
-      } else if (expr instanceof Not) {
-        op = JUnaryOperator.NOT;
-      } else if (expr instanceof BitNot) {
-        op = JUnaryOperator.BIT_NOT;
-      } else {
-        throw new InternalCompilerException("Unsupported AST node " + expr);
+      switch (jrOp.getOp()) {
+        case Neg:
+          op = JUnaryOperator.NEG;
+          break;
+        case Not:
+          op = JUnaryOperator.NOT;
+          break;
+        case BitNot:
+          op = JUnaryOperator.BIT_NOT;
+          break;
+        default:
+          throw new InternalCompilerException("Unknown jribble unaryOp " + 
+              jrOp.getOp().getValueDescriptor().getFullName());
       }
-      return new JPrefixOperation(UNKNOWN, op, expression(expr.expression(), local));
+      return new JPrefixOperation(UNKNOWN, op, expression(jrOp.getExpr(), local));
     }
-
-    private JNewArray arrayInitializer(ArrayInitializer expr, LocalStack local) {
-      JArrayType arrayType = new JArrayType(mapper.getType(expr.typ()));
-      List<JExpression> initializers = new LinkedList<JExpression>();
-      for (Expression e : expr.jelements()) {
-        initializers.add(expression(e, local));
+    
+    private JNewArray newArray(NewArray expr, LocalStack local) {
+      JType type = mapper.getType(expr.getElementType()); // this is the element type
+      assert (expr.getInitExprCount() > 0 && expr.getDimensions() == 1) || expr.getInitExprCount() == 0;
+      if (expr.getInitExprCount() > 0) {
+        JArrayType arrayType = new JArrayType(type);
+        List<JExpression> initializers = new LinkedList<JExpression>();
+        for (Expr e : expr.getInitExprList()) {
+          initializers.add(expression(e, local));
+        }
+        return JNewArray.createInitializers(UNKNOWN, arrayType, initializers);
+      } else {
+        for (int i = 0; i < expr.getDimensions(); i++) {
+          type = new JArrayType(type);
+        }
+        List<JExpression> dims = new LinkedList<JExpression>();
+        for (Expr i : expr.getDimensionExprList()) {
+          dims.add(expression(i, local));
+        }
+        for (int i = 0; i < expr.getDimensions() - expr.getDimensionExprCount(); i++) {
+          dims.add(JAbsentArrayDimension.INSTANCE); 
+        }
+        return JNewArray.createDims(UNKNOWN, (JArrayType) type, dims); 
       }
-      return JNewArray.createInitializers(UNKNOWN, arrayType, initializers);
     }
 
     private JInstanceOf instanceOf(InstanceOf expr, LocalStack local) {
-      JExpression on = expression(expr.on(), local);
-      return new JInstanceOf(UNKNOWN, (JReferenceType) mapper.getType(expr.typ()), on);
+      JExpression on = expression(expr.getExpr(), local);
+      return new JInstanceOf(UNKNOWN, (JReferenceType) mapper.getType(expr.getTpe()), on);
     }
 
     private JArrayLength arrayLength(ArrayLength expr, LocalStack local) {
-      JExpression on = expression(expr.on(), local);
+      JExpression on = expression(expr.getArray(), local);
       return new JArrayLength(UNKNOWN, on);
     }
 
-    private JNewArray newArray(NewArray expr, LocalStack local) {
-      JType type = mapper.getType(expr.typ()); // this is the element type
-      for (int i = 0; i < expr.jdims().size(); i++) {
-        type = new JArrayType(type);
-      }
-      List<JExpression> dims = new LinkedList<JExpression>();
-      for (Option<Expression> i : expr.jdims()) {
-        if (i.isDefined()) {
-          dims.add(expression(i.get(), local));
-        } else {
-          dims.add(JAbsentArrayDimension.INSTANCE);
-        }
-      }
-      return JNewArray.createDims(UNKNOWN, (JArrayType) type, dims);
-    }
-
     private JArrayRef arrayRef(ArrayRef expr, LocalStack local) {
-      return new JArrayRef(UNKNOWN, expression(expr.on(), local), expression(expr.index(), local));
-    }
-
-    private JFieldRef staticFieldRef(StaticFieldRef expr, LocalStack local) {
-      JField field = mapper.getField(expr.on().javaName(), expr.name(), true);
-      return new JFieldRef(UNKNOWN, null, field, local.getEnclosingType());
+      return new JArrayRef(UNKNOWN, expression(expr.getArray(), local), 
+          expression(expr.getIndex(), local));
     }
 
     private JFieldRef fieldRef(FieldRef expr, LocalStack local) {
-      JExpression on = expression(expr.on(), local);
-      // TODO FieldRef.onType should be of type Ref and not Type
-      JClassType typ = (JClassType) mapper.getType(expr.onType());
-      JField field = mapper.getField(typ.getName(), expr.name(), false);
+      JExpression on = null;
+      if (expr.hasQualifier()) {
+        on = expression(expr.getQualifier(), local); 
+      }
+      JClassType typ = mapper.getClassType(expr.getEnclosingType());
+      boolean isStatic = !expr.hasQualifier();
+      JField field = mapper.getField(typ.getName(), expr.getName(), isStatic);
       return new JFieldRef(UNKNOWN, on, field, local.getEnclosingType());
     }
 
-    private JBinaryOperation binaryOp(BinaryOp op, LocalStack local) {
-      JExpression lhs = expression(op.lhs(), local);
-      JExpression rhs = expression(op.rhs(), local);
-      JBinaryOperator jop;
-      JType type;
-      if (op instanceof Equal) {
-        jop = JBinaryOperator.EQ;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof Multiply) {
-        jop = JBinaryOperator.MUL;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof Divide) {
-        jop = JBinaryOperator.DIV;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof Modulus) {
-        jop = JBinaryOperator.MOD;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof Minus) {
-        jop = JBinaryOperator.SUB;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof Plus) {
-        if (lhs.getType() == javaLangString.getNonNull()
-            || lhs.getType() == javaLangString
-            || rhs.getType() == javaLangString.getNonNull()
-            || rhs.getType() == javaLangString) {
-          jop = JBinaryOperator.CONCAT;
-          type = javaLangString;
-        } else {
-          jop = JBinaryOperator.ADD;
-          type = promotedType(lhs.getType(), rhs.getType());
-        }
-      } else if (op instanceof Greater) {
-        jop = JBinaryOperator.GT;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof GreaterOrEqual) {
-        jop = JBinaryOperator.GTE;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof Lesser) {
-        jop = JBinaryOperator.LT;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof LesserOrEqual) {
-        jop = JBinaryOperator.LTE;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof NotEqual) {
-        jop = JBinaryOperator.NEQ;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof And) {
-        jop = JBinaryOperator.AND;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof Or) {
-        jop = JBinaryOperator.OR;
-        type = JPrimitiveType.BOOLEAN;
-      } else if (op instanceof BitLShift) {
-        jop = JBinaryOperator.SHL;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof BitRShift) {
-        jop = JBinaryOperator.SHR;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof BitUnsignedRShift) {
-        jop = JBinaryOperator.SHRU;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof BitAnd) {
-        jop = JBinaryOperator.BIT_AND;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof BitOr) {
-        jop = JBinaryOperator.BIT_OR;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else if (op instanceof BitXor) {
-        jop = JBinaryOperator.BIT_XOR;
-        type = promotedType(lhs.getType(), rhs.getType());
-      } else {
-        throw new RuntimeException("Uknown symbol " + op.symbol());
+    private JBinaryOperation binaryOp(Binary op, LocalStack local) {
+      JExpression lhs = expression(op.getLhs(), local);
+      JExpression rhs = expression(op.getRhs(), local);
+      JBinaryOperator jop = null;
+      JType type = mapper.getType(op.getTpe());
+      switch (op.getOp()) {
+        case And: jop = JBinaryOperator.AND; break;
+        case BitAnd: jop = JBinaryOperator.BIT_AND; break;
+        case BitLeftShift: jop = JBinaryOperator.SHL; break;
+        case BitOr: jop = JBinaryOperator.BIT_OR; break;
+        case BitRightShift: jop = JBinaryOperator.SHR; break;
+        case BitUnsignedRightShift: jop = JBinaryOperator.SHRU; break;
+        case BitXor: jop = JBinaryOperator.BIT_XOR; break;
+        case Concat: jop = JBinaryOperator.CONCAT; break;
+        case Divide: jop = JBinaryOperator.DIV; break;
+        case Equal: jop = JBinaryOperator.EQ; break;
+        case Greater: jop = JBinaryOperator.GT; break;
+        case GreaterOrEqual: jop = JBinaryOperator.GTE; break;
+        case Lesser: jop = JBinaryOperator.LT; break;
+        case LesserOrEqual: jop = JBinaryOperator.LTE; break;
+        case Minus: jop = JBinaryOperator.SUB; break;
+        case Modulus: jop = JBinaryOperator.MOD; break;
+        case Multiply: jop = JBinaryOperator.MUL; break;
+        case NotEqual: jop = JBinaryOperator.NEQ; break;
+        case Or: jop = JBinaryOperator.OR; break;
+        case Plus: jop = JBinaryOperator.ADD; break;
+        default:
+          throw new InternalCompilerException("Uknown jribble binary operation " +
+              op.getOp().getValueDescriptor().getFullName());
       }
       return new JBinaryOperation(UNKNOWN, type, jop, lhs, rhs);
     }
 
     private JCastOperation cast(Cast cast, LocalStack local) {
-      JExpression on = expression(cast.on(), local);
-      return new JCastOperation(UNKNOWN, mapper.getType(cast.typ()), on);
+      JExpression on = expression(cast.getExpr(), local);
+      return new JCastOperation(UNKNOWN, mapper.getType(cast.getTpe()), on);
     }
 
     private JIfStatement ifStmt(If statement, LocalStack local) {
-      JExpression condition = expression(statement.condition(), local);
+      JExpression condition = expression(statement.getCondition(), local);
 
       final JBlock then = new JBlock(UNKNOWN);
-      block(statement.then(), then, local);
+      then.addStmt(methodStatement(statement.getThen(), local));
       JBlock elsee = null;
-      if (statement.elsee().isDefined()) {
+      if (statement.hasElsee()) {
         elsee = new JBlock(UNKNOWN);
-        block(statement.elsee().get(), elsee, local);
+        elsee.addStmt(methodStatement(statement.getElsee(), local));
       }
       return new JIfStatement(UNKNOWN, condition, then, elsee);
     }
+    
+    private JLabeledStatement labelledStmt(LabelledStat stmt, LocalStack local) {
+      JLabel label = new JLabel(UNKNOWN, stmt.getLabel());
+      local.pushLabel(label);
+      JStatement jStmt = methodStatement(stmt.getStatement(), local); 
+      local.popLabel(label.getName());
+      return new JLabeledStatement(UNKNOWN, label, jStmt);
+    }
 
     private JLiteral literal(Literal literal) {
-      if (literal instanceof StringLiteral) {
-        return new JStringLiteral(UNKNOWN, ((StringLiteral) literal).v(), javaLangString);
-      } else if (literal instanceof BooleanLiteral) {
-        return JBooleanLiteral.get(((BooleanLiteral) literal).v());
-      } else if (literal instanceof CharLiteral) {
-        return JCharLiteral.get(((CharLiteral) literal).v());
-      } else if (literal instanceof DoubleLiteral) {
-        return JDoubleLiteral.get(((DoubleLiteral) literal).v());
-      } else if (literal instanceof FloatLiteral) {
-        return JFloatLiteral.get(((FloatLiteral) literal).v());
-      } else if (literal instanceof IntLiteral) {
-        return JIntLiteral.get(((IntLiteral) literal).v());
-      } else if (literal instanceof LongLiteral) {
-        return JLongLiteral.get(((LongLiteral) literal).v());
-      } else if (literal instanceof NullLiteral$) {
-        return JNullLiteral.INSTANCE;
-      } else {
-        throw new RuntimeException("to be implemented handling of " + literal);
+      switch (literal.getType()) {
+        case String:
+          return new JStringLiteral(UNKNOWN, literal.getStringValue(), javaLangString);
+        case Boolean:
+          return JBooleanLiteral.get(literal.getBoolValue());
+        case Char:
+          return JCharLiteral.get((char )literal.getCharValue());
+        case Double:
+          return JDoubleLiteral.get(literal.getDoubleValue());
+        case Float:
+          return JFloatLiteral.get(literal.getFloatValue());
+        case Int:
+          return JIntLiteral.get(literal.getIntValue());
+        case Long:
+          return JLongLiteral.get(literal.getLongValue());
+        case Null:
+          return JNullLiteral.INSTANCE;
+        case Short:
+          //in Java there are no short literals, only int literals
+          return JIntLiteral.get(literal.getShortValue());
+        case Byte:
+          //in Java there are no byte literals, only int literals
+          return JIntLiteral.get(literal.getByteValue());
+        default:
+          throw new InternalCompilerException("Uknown jribble literal " +
+              literal.getType().getValueDescriptor().getFullName());
       }
     }
 
     private JMethodCall methodCall(MethodCall call, LocalStack local) {
-      JMethod method = mapper.getMethod(call.signature(), false, false);
-      JExpression on = expression(call.on(), local);
-      List<JExpression> params = params(call.signature().jparamTypes(), call.jparams(), local);
+      boolean isStatic = !call.hasReceiver();
+      boolean isConstructor = call.getSignature().getName().equals("new");
+      JMethod method = mapper.getMethod(call.getSignature(), isStatic, isConstructor);
+      JExpression on = null;
+      if (call.hasReceiver()) {
+        on = expression(call.getReceiver(), local);
+      }
+      List<JExpression> params = params(call.getSignature().getParamTypeList(), call.getArgumentList(), local);
       JMethodCall jcall = new JMethodCall(UNKNOWN, on, method);
       jcall.addArgs(params);
-      if (call.on() == superRef) {
+      if (call.getReceiver().getType() == ExprType.SuperRef || isConstructor) {
         jcall.setStaticDispatchOnly();
       }
       return jcall;
     }
 
-    private void methodDef(MethodDef def, JClassType enclosingClass, ClassDef classDef) {
-      JMethod m =
-          mapper.getMethod(def.signature(classDef.name()), def.modifs().contains("static"), false);
+    private void methodDef(Declaration def, JClassType enclosingClass, DeclaredType classDef) {
+      assert def.getType() == DeclarationType.Method;
+      Method jrMethod = def.getMethod();
+      boolean isStatic = def.getModifiers().getIsStatic();
+      JMethod m = mapper.getMethod(signature(classDef, jrMethod), isStatic, false);
       Map<String, JParameter> params = new HashMap<String, JParameter>();
       for (JParameter x : m.getParams()) {
         params.put(x.getName(), x);
       }
-      if (def.body().isDefined()) {
+      if (jrMethod.hasBody()) {
         JMethodBody body = (JMethodBody) m.getBody();
         LocalStack local = new LocalStack(enclosingClass, body, params);
         local.pushBlock();
         JBlock block = body.getBlock();
-        block(def.body().get(), block, local);
+        flatten(jrMethod.getBody(), block, local);
       }
     }
 
-    private JStatement methodStatement(Statement statement, LocalStack local) {
-      if (statement instanceof VarDef) {
-        return varDef((VarDef) statement, local);
-      } else if (statement instanceof Assignment) {
-        return assignment((Assignment) statement, local);
-      } else if (statement instanceof Expression) {
-        return expression((Expression) statement, local).makeStatement();
-      } else if (statement instanceof If) {
-        return ifStmt((If) statement, local);
-      } else if (statement instanceof Return) {
-        return returnStmt((Return) statement, local);
-      } else if (statement instanceof Throw) {
-        return throwStmt((Throw) statement, local);
-      } else if (statement instanceof Try) {
-        return tryStmt((Try) statement, local);
-      } else if (statement instanceof While) {
-        return whileStmt((While) statement, local);
-      } else if (statement instanceof Block) {
-        JBlock block = new JBlock(UNKNOWN);
-        block((Block) statement, block, local);
-        return block;
-      } else if (statement instanceof Continue) {
-        return continueStmt((Continue) statement, local);
-      } else if (statement instanceof Break) {
-        return breakStmt((Break) statement, local);
-      } else if (statement instanceof Switch) {
-        return switchStmt((Switch) statement, local);
-      } else
-        throw new RuntimeException("Unexpected case " + statement);
+    private JStatement methodStatement(Statement s, LocalStack local) {
+      switch (s.getType()) {
+        case Block:
+          JBlock block = new JBlock(UNKNOWN);
+          block(s.getBlock(), block, local);
+          return block;
+        case Break:
+          return breakStmt(s.getBreak(), local);
+        case Continue:
+          return continueStmt(s.getContinueStat(), local);
+        case Expr:
+          return expression(s.getExpr(), local).makeStatement();
+        case If:
+          return ifStmt(s.getIfStat(), local);
+        case LabelledStat:
+          return labelledStmt(s.getLabelledStat(), local);
+        case Return:
+          return returnStmt(s.getReturnStat(), local);
+        case Switch:
+          return switchStmt(s.getSwitchStat(), local);
+        case Throw:
+          return throwStmt(s.getThrowStat(), local);
+        case Try:
+          return tryStmt(s.getTryStat(), local);
+        case VarDef:
+          return varDef(s.getVarDef(), local);
+        case While:
+          return whileStmt(s.getWhileStat(), local); 
+        default: 
+          throw new InternalCompilerException("Uknown jribble statement " +
+              s.getType().getValueDescriptor().getFullName());
+      }
     }
 
-    private JSwitchStatement switchStmt(Switch statement, LocalStack local) {
-      JExpression expr = expression(statement.expression(), local);
+    private JSwitchStatement switchStmt(Switch s, LocalStack local) {
+      JExpression expr = expression(s.getExpression(), local);
       JBlock block = new JBlock(UNKNOWN);
-      for (Tuple2<Literal, Block> x : statement.jgroups()) {
-        JLiteral literal = literal(x._1);
+      for (Case x : s.getCaseList()) {
+        JLiteral literal = literal(x.getConstant());
         JCaseStatement caseStmt = new JCaseStatement(UNKNOWN, literal);
         JBlock caseBlock = new JBlock(UNKNOWN);
         caseBlock.addStmt(caseStmt);
-        block(x._2, caseBlock, local);
+        caseBlock.addStmt(methodStatement(x.getStatement(), local));
         block.addStmts(caseBlock.getStatements());
       }
-      if (statement.jdefault().isDefined()) {
+      if (s.hasDefaultCase()) {
         JCaseStatement caseStmt = new JCaseStatement(UNKNOWN, null);
         JBlock caseBlock = new JBlock(UNKNOWN);
         caseBlock.addStmt(caseStmt);
-        block(statement.jdefault().get(), caseBlock, local);
+        caseBlock.addStmt(methodStatement(s.getDefaultCase(), local));
         block.addStmts(caseBlock.getStatements());
       }
       return new JSwitchStatement(UNKNOWN, expr, block);
     }
 
-    private JContinueStatement continueStmt(Continue statement, LocalStack local) {
+    private JContinueStatement continueStmt(Continue s, LocalStack local) {
       JLabel label = null;
-      if (statement.label().isDefined()) {
-        label = local.getLabel(statement.label().get());
+      if (s.hasLabel()) {
+        label = local.getLabel(s.getLabel());
       }
       return new JContinueStatement(UNKNOWN, label);
     }
 
-    private JBreakStatement breakStmt(Break statement, LocalStack local) {
+    private JBreakStatement breakStmt(Break s, LocalStack local) {
       JLabel label = null;
-      if (statement.label().isDefined()) {
-        label = local.getLabel(statement.label().get());
+      if (s.hasLabel()) {
+        label = local.getLabel(s.getLabel());
       }
       return new JBreakStatement(UNKNOWN, label);
     }
 
-    private JStatement whileStmt(While statement, LocalStack local) {
-      JExpression cond = expression(statement.condition(), local);
-      JLabel label = null;
-      if (statement.label().isDefined()) {
-        label = new JLabel(UNKNOWN, statement.label().get());
-        local.pushLabel(label);
-      }
-      JBlock block = new JBlock(UNKNOWN);
-      block(statement.block(), block, local);
-      if (label != null) {
-        local.popLabel(label.getName());
-      }
-      JStatement jstatement = new JWhileStatement(UNKNOWN, cond, block);
-      if (label != null) {
-        jstatement = new JLabeledStatement(UNKNOWN, label, jstatement);
-      }
-      return jstatement;
+    private JStatement whileStmt(While s, LocalStack local) {
+      JExpression cond = expression(s.getCondition(), local);
+      JStatement body = methodStatement(s.getBody(), local);
+      return new JWhileStatement(UNKNOWN, cond, body);
     }
 
-    private JTryStatement tryStmt(Try statement, LocalStack localStack) {
+    private JTryStatement tryStmt(Try s, LocalStack localStack) {
       JBlock block = new JBlock(UNKNOWN);
-      block(statement.block(), block, localStack);
+      flatten(s.getBlock(), block, localStack);
       List<JLocalRef> catchVars = new LinkedList<JLocalRef>();
       List<JBlock> catchBlocks = new LinkedList<JBlock>();
       // introduce block context for catch variables so they can be discarded properly
       localStack.pushBlock();
-      for (Tuple3<Ref, String, Block> x : statement.jcatches()) {
-        JLocal local = JProgram.createLocal(UNKNOWN, x._2(), mapper.getType(x._1()), false, localStack.getEnclosingBody());
-        localStack.addVar(x._2(), local);
+      for (Catch x : s.getCatchList()) {
+        JLocal local = JProgram.createLocal(UNKNOWN, x.getParam(), 
+            mapper.getClassType(x.getTpe()), false, localStack.getEnclosingBody());
+        localStack.addVar(x.getParam(), local);
         JLocalRef ref = new JLocalRef(UNKNOWN, local);
         JBlock catchBlock = new JBlock(UNKNOWN);
-        block(x._3(), catchBlock, localStack);
+        flatten(x.getBody(), catchBlock, localStack);
         catchBlocks.add(catchBlock);
         catchVars.add(ref);
       }
       localStack.popBlock();
       JBlock finallyBlock = null;
-      if (statement.finalizer().isDefined()) {
+      if (s.hasFinalizer()) {
         finallyBlock = new JBlock(UNKNOWN);
-        block(statement.finalizer().get(), finallyBlock, localStack);
+        flatten(s.getFinalizer(), finallyBlock, localStack);
       }
       return new JTryStatement(UNKNOWN, block, catchVars, catchBlocks, finallyBlock);
     }
 
-    private JThrowStatement throwStmt(Throw statement, LocalStack local) {
-      JExpression expression = expression(statement.expression(), local);
+    private JThrowStatement throwStmt(Throw s, LocalStack local) {
+      JExpression expression = expression(s.getExpression(), local);
       return new JThrowStatement(UNKNOWN, expression);
     }
 
-    private JReturnStatement returnStmt(Return statement, LocalStack local) {
+    private JReturnStatement returnStmt(Return s, LocalStack local) {
       JExpression expression = null;
-      if (statement.expression().isDefined()) {
-        expression = expression(statement.expression().get(), local);
+      if (s.hasExpression()) {
+        expression = expression(s.getExpression(), local);
       }
       return new JReturnStatement(UNKNOWN, expression);
     }
 
-    private JNewInstance newCall(NewCall call, LocalStack local) {
-      JMethodCall methodCall = constructorCall(call.constructor(), local);
+    private JNewInstance newCall(NewObject call, LocalStack local) {
+      JMethodCall methodCall = constructorCall(call.getSignature(), call.getArgumentList(), local);
       JNewInstance jnew =
           new JNewInstance(UNKNOWN, (JConstructor) methodCall.getTarget(), local.getEnclosingType());
       jnew.addArgs(methodCall.getArgs());
       return jnew;
     }
 
-    private JMethodCall staticMethodCall(StaticMethodCall call, LocalStack local) {
-      JMethod method = mapper.getMethod(call.signature(), true, false);
-      List<JExpression> params = params(call.signature().jparamTypes(), call.jparams(), local);
-      JMethodCall jcall = new JMethodCall(UNKNOWN, null, method);
-      jcall.addArgs(params);
-      return jcall;
-    }
-
-    private JMethodCall constructorCall(ConstructorCall call, LocalStack local) {
-      Signature signature = call.signature();
+    private JMethodCall constructorCall(MethodSignature signature, List<Expr> args, LocalStack local) {
+      assert signature.getName().equals("new");
       JMethod method = mapper.getMethod(signature, false, true);
-      List<JExpression> params = params(signature.jparamTypes(), call.jparams(), local);
+      List<JExpression> params = params(signature.getParamTypeList(), args, local);
       JMethodCall jcall = new JMethodCall(UNKNOWN, thisRef(local.getEnclosingType()), method);
       // not sure why this is needed; inspired by JavaASTGenerationVisitor.processConstructor
       jcall.setStaticDispatchOnly();
@@ -944,23 +827,23 @@ public class JribbleAstBuilder {
     private JDeclarationStatement varDef(VarDef def, LocalStack localStack) {
       // TODO: modifs for isFinal
       boolean isFinal = false;
-      JLocal local =
-          JProgram.createLocal(UNKNOWN, def.name(), mapper.getType(def.typ()), isFinal, localStack.enclosingBody);
-      localStack.addVar(def.name(), local);
+      JLocal local = JProgram.createLocal(UNKNOWN, def.getName(), 
+          mapper.getType(def.getTpe()), isFinal, localStack.enclosingBody);
+      localStack.addVar(def.getName(), local);
       JLocalRef ref = new JLocalRef(UNKNOWN, local);
       JExpression expr = null;
-      if (def.value().isDefined()) {
-        expr = expression(def.value().get(), localStack);
+      if (def.hasInitializer()) {
+        expr = expression(def.getInitializer(), localStack);
       }
       return new JDeclarationStatement(UNKNOWN, ref, expr);
     }
 
     private JVariableRef varRef(VarRef ref, LocalStack local) {
-      assert ref.name() != null;
-      return local.resolveLocal(ref.name());
+      assert ref.getName() != null;
+      return local.resolveLocal(ref.getName());
     }
 
-    private List<JExpression> params(List<Type> paramTypes, List<Expression> params,
+    private List<JExpression> params(List<Type> paramTypes, List<Expr> params,
         LocalStack local) {
       assert paramTypes.size() == params.size() : "Mismatched params";
       List<JExpression> result = new LinkedList<JExpression>();
@@ -989,11 +872,13 @@ public class JribbleAstBuilder {
     return method;
   }
 
-  private static Disposition getFieldDisposition(FieldDef jrField) {
+  private static Disposition getFieldDisposition(Declaration decl) {
+    assert decl.getType() == DeclarationType.Field;
+    Modifiers m = decl.getModifiers();
     // COMPILE_TIME_CONSTANT?
-    if (jrField.modifs().contains("final")) {
+    if (m.getIsFinal()) {
       return Disposition.FINAL;
-    } else if (jrField.modifs().contains("volatile")) {
+    } else if (m.getIsVolatile()) {
       return Disposition.VOLATILE;
     } else {
       return Disposition.NONE;
@@ -1019,14 +904,40 @@ public class JribbleAstBuilder {
     body.getBlock().addStmt(0, superClinitCall.makeStatement());
   }
 
-  private static boolean hasConstructorCall(ClassDef classDef, Block block) {
-    for (Statement stmt : block.jstatements()) {
-      if (stmt instanceof ConstructorCall
-          && ((ConstructorCall) stmt).signature().on().equals(classDef.name())) {
-        return true;
+  private static boolean hasConstructorCall(DeclaredType classDef, Statement s) {
+    //TODO(grek): Do we need to traverse whole AST for constructor call?
+    if (s.getType() == StatementType.Block) {
+      Block block = s.getBlock();
+      for (Statement x : block.getStatementList()) {
+        if (hasConstructorCall(classDef, x)) {
+          return true;
+        }
       }
+      return false;
+    } else if (s.getType() == StatementType.Expr) {
+      return isConstructorCall(s)
+          && (s.getExpr().getMethodCall().getSignature().getOwner().equals(classDef.getName()));
     }
     return false;
+  }
+  
+  private static MethodSignature signature(DeclaredType enclosing, Method m) {
+    MethodSignature.Builder b = MethodSignature.newBuilder();
+    b.setName(m.getName());
+    b.setOwner(enclosing.getName());
+    for (ParamDef pd : m.getParamDefList()) {
+      b.addParamType(pd.getTpe());
+    }
+    b.setReturnType(m.getReturnType());
+    return b.build();
+  }
+  
+  private static String javaName(GlobalName name) {
+    if (name.hasPkg()) {
+      return intern(name.getPkg() + "." + name.getName());
+    } else {
+      return intern(name.getName());
+    }
   }
 
   private static String intern(String s) {
@@ -1041,32 +952,15 @@ public class JribbleAstBuilder {
     return internalNames;
   }
 
-  private static AccessModifier access(scala.collection.immutable.Set<String> modifs) {
-    for (AccessModifier access : AccessModifier.values()) {
-      if (modifs.contains(access.name().toLowerCase())) {
-        return access;
-      }
-    }
-    return AccessModifier.DEFAULT;
-  }
-
-  /** Determines the "max" type of {@code lhs} and {@code rhs}
-   *
-   * See http://java.sun.com/docs/books/jls/third_edition/html/conversions.html#170983.
-   */
-  private static JType promotedType(JType lhs, JType rhs) {
-    // unboxing is already taken care of on the scalac side
-    assert lhs instanceof JPrimitiveType;
-    assert rhs instanceof JPrimitiveType;
-    if (lhs == JPrimitiveType.DOUBLE || rhs == JPrimitiveType.DOUBLE) {
-      return JPrimitiveType.DOUBLE;
-    } else if (lhs == JPrimitiveType.FLOAT || rhs == JPrimitiveType.FLOAT) {
-      return JPrimitiveType.FLOAT;
-    } else if (lhs == JPrimitiveType.LONG || rhs == JPrimitiveType.LONG) {
-      return JPrimitiveType.LONG;
-    } else {
-      return JPrimitiveType.INT;
-    }
+  private static AccessModifier access(Modifiers m) {
+    if (m.getIsPublic())
+      return AccessModifier.PUBLIC;
+    else if (m.getIsProtected())
+      return AccessModifier.PROTECTED;
+    else if (m.getIsPrivate())
+      return AccessModifier.PRIVATE;
+    else
+      return AccessModifier.DEFAULT;
   }
 
 }

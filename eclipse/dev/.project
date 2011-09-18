@@ -26,10 +26,5 @@
 			<type>2</type>
 			<locationURI>GWT_ROOT/dev/core</locationURI>
 		</link>
-		<link>
-			<name>scalagwt-lib</name>
-			<type>2</type>
-			<locationURI>GWT_ROOT/scalagwt-lib</locationURI>
-		</link>
 	</linkedResources>
 </projectDescription>
