@@ -11,8 +11,9 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.google.gwt.dev.jjs.impl;
+package com.google.gwt.dev.jjs.impl.jribble;
 
+import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.SourceOrigin;
 import com.google.gwt.dev.jjs.ast.JArrayType;
 import com.google.gwt.dev.jjs.ast.JClassType;
@@ -29,15 +30,8 @@ import com.google.gwt.dev.jjs.ast.JPrimitiveType;
 import com.google.gwt.dev.jjs.ast.JReferenceType;
 import com.google.gwt.dev.jjs.ast.JType;
 import com.google.gwt.dev.util.StringInterner;
-import com.google.jribble.ast.Array;
-import com.google.jribble.ast.ClassDef;
-import com.google.jribble.ast.DeclaredType;
-import com.google.jribble.ast.FieldDef;
-import com.google.jribble.ast.Primitive;
-import com.google.jribble.ast.Ref;
-import com.google.jribble.ast.Signature;
-import com.google.jribble.ast.Type;
-import com.google.jribble.ast.Void$;
+
+import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.*;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -104,6 +98,11 @@ public class JribbleReferenceMapper {
     // is external, UnifyAst will fix things up for us later.
     return getClassType(name);
   }
+  
+  /** @return an existing source or exiting|new external JClassType */
+  public JClassType getClassType(GlobalName name) {
+    return getClassType(javaName(name));
+  }
 
   /** @return an existing source or exiting|new external JClassType */
   public JClassType getClassType(String name) {
@@ -166,9 +165,9 @@ public class JribbleReferenceMapper {
         || (type instanceof JArrayType && isEffectivelyExternal(((JArrayType) type) .getElementType()));
   }
 
-  private static String key(Signature signature, boolean isCstr) {
+  private static String key(MethodSignature s, boolean isCstr) {
     StringBuilder sb = new StringBuilder();
-    sb.append(signature.on().javaName());
+    sb.append(javaName(s.getOwner()));
     sb.append('.');
     // jribble Constructor's signature() method uses the type name
     // as its method name. However, other places uses "this" as
@@ -177,28 +176,44 @@ public class JribbleReferenceMapper {
     if (isCstr) {
       sb.append("this");
     } else {
-      sb.append(signature.name());
+      sb.append(s.getName());
     }
     sb.append('(');
-    for (Type paramType : signature.jparamTypes()) {
+    for (Type paramType : s.getParamTypeList()) {
       sb.append(javaName(paramType));
     }
     sb.append(')');
-    sb.append(javaName(signature.returnType()));
+    sb.append(javaName(s.getReturnType()));
     return sb.toString();
   }
 
   private static String javaName(Type type) {
-    if (type instanceof Ref) {
-      return ((Ref) type).javaName();
-    } else if (type instanceof Array) {
-      return "[" + javaName(((Array) type).typ());
-    } else if (type instanceof Primitive) {
-      return ((Primitive) type).name();
-    } else if (type == Void$.MODULE$) {
-      return "void";
-    } else {
-      throw new RuntimeException("Unhandled type " + type);
+    switch (type.getType()) {
+      case Named:
+        return javaName(type.getNamedType());
+      case Array:
+        return "[" + javaName(type.getArrayElementType());
+      case Primitive:
+        return javaName(type.getPrimitiveType());
+      case Void:
+        return "void";
+      default: throw new InternalCompilerException("Unknown jribble TypeType " +
+          type.getType().getValueDescriptor().getFullName());
+    }
+  }
+  
+  private static String javaName(PrimitiveType type) {
+    switch (type) {
+      case Boolean: return "Z";
+      case Byte:    return "B";
+      case Char:    return "C";
+      case Double:  return "D";
+      case Float:   return "F";
+      case Int:     return "I";
+      case Long:    return "J";
+      case Short:   return "S";
+      default: throw new InternalCompilerException("Unknown jribble primitive type " + 
+          type.getValueDescriptor().getFullName());
     }
   }
 
@@ -222,8 +237,8 @@ public class JribbleReferenceMapper {
     return newExternal;
   }
 
-  public JMethod getMethod(Signature signature, boolean isStatic, boolean isCstr) {
-    String key = key(signature, isCstr);
+  public JMethod getMethod(MethodSignature s, boolean isStatic, boolean isCstr) {
+    String key = key(s, isCstr);
     JMethod sourceMethod = sourceMethods.get(key);
     if (sourceMethod != null) {
       assert !sourceMethod.isExternal();
@@ -237,15 +252,15 @@ public class JribbleReferenceMapper {
     JMethod newExternal;
     if (isCstr) {
       newExternal =
-          new JConstructor(SourceOrigin.UNKNOWN, (JClassType) getType(signature.on().javaName()));
+          new JConstructor(SourceOrigin.UNKNOWN, (JClassType) getType(javaName(s.getOwner())));
     } else {
       // assume public is okay for the AccessModifier, will be fixed by UnifyAst
       newExternal =
-          new JMethod(SourceOrigin.UNKNOWN, signature.name(), (JDeclaredType) getType(signature
-              .on().javaName()), getType(signature.returnType()), false, isStatic, false, AccessModifier.PUBLIC);
+          new JMethod(SourceOrigin.UNKNOWN, s.getName(), (JDeclaredType) getType(
+              javaName(s.getOwner())), getType(s.getReturnType()), false, isStatic, false, AccessModifier.PUBLIC);
     }
     int i = 0;
-    for (Type type : signature.jparamTypes()) {
+    for (Type type : s.getParamTypeList()) {
       newExternal.addParam(new JParameter(SourceOrigin.UNKNOWN, "x" + (i++), getType(type), false, false, newExternal));
     }
     newExternal.freezeParamTypes();
@@ -254,19 +269,20 @@ public class JribbleReferenceMapper {
     return newExternal;
   }
 
-  public void setSourceMethod(Signature signature, JMethod method) {
+  public void setSourceMethod(MethodSignature signature, JMethod method) {
     assert !method.isExternal();
     sourceMethods.put(key(signature, method instanceof JConstructor), method);
   }
 
-  public void setSourceField(ClassDef jrClassDef, FieldDef jrFieldDef, JField field) {
+  public void setSourceField(DeclaredType jrClassDef, FieldDef jrFieldDef, JField field) {
+    assert !jrClassDef.getIsInterface();
     assert !field.isExternal();
     sourceFields.put(signature(jrClassDef, jrFieldDef), field);
   }
 
   public void setSourceType(DeclaredType type, JDeclaredType jtype) {
     assert !jtype.isExternal();
-    sourceTypes.put(type.name().javaName(), jtype);
+    sourceTypes.put(javaName(type.getName()), jtype);
   }
 
   private static String intern(String s) {
@@ -281,15 +297,23 @@ public class JribbleReferenceMapper {
     }
   }
 
-  private static String signature(ClassDef jrClassDef, FieldDef jrField) {
+  private static String signature(DeclaredType jrDeclaredType, FieldDef jrField) {
     StringBuilder sb = new StringBuilder();
-    sb.append(jrClassDef.name().javaName());
+    sb.append(javaName(jrDeclaredType.getName()));
     sb.append('.');
-    sb.append(jrField.name());
+    sb.append(jrField.getName());
     sb.append(':');
     // GwtAstBuilder had field type here--why?
     // sb.append(javaName(jrField.typ()));
     return sb.toString();
+  }
+  
+  private static String javaName(GlobalName name) {
+    if (name.hasPkg()) {
+      return intern(name.getPkg() + "." + name.getName());
+    } else {
+      return intern(name.getName());
+    }
   }
 
 }

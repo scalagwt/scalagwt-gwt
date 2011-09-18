@@ -24,7 +24,7 @@ import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
-import com.google.gwt.dev.jjs.impl.JribbleAstBuilder;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleAstBuilder;
 import com.google.gwt.dev.js.ast.JsRootScope;
 import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.Name.BinaryName;
@@ -35,7 +35,6 @@ import com.google.gwt.dev.util.log.speedtracer.DevModeEventType;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.Event;
 import com.google.gwt.dev.util.log.speedtracer.SpeedTracerLogger.EventType;
-import com.google.jribble.ast.DeclaredType;
 
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
@@ -61,8 +60,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 
 /**
@@ -359,7 +356,7 @@ public class CompilationStateBuilder {
         try {
         CompiledClass cc =
             new CompiledClass(readBytes(cub), null, false, BinaryName.toInternalName(cub.getTypeName()));
-        DeclaredType declaredType = JribbleParser.parse(logger, cub.getTypeName(), cub.getSource());
+        com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.DeclaredType declaredType = JribbleParser.parse(logger, cub.getTypeName(), cub.getSource());
         JribbleAstBuilder.Result result = jribbleAstBuilder.process(declaredType);
         cub.setTypes(result.types);
         cub.setDependencies(Dependencies.buildFromApiRefs(cc.getPackageName(), newArrayList(result.apiRefs)));
@@ -500,28 +497,15 @@ public class CompilationStateBuilder {
   }
 
   private static byte[] readBytes(CompilationUnitBuilder cub) {
-    String scalaLibrary = System.getProperty("gwt.scalalibrary.path");
-    if (scalaLibrary == null) {
-      throw new InternalCompilerException("gwt.scalalibrary.path property is not set");
-    }
     String classFile = cub.getTypeName().replace('.', '/') + ".class";
     try {
-      File file = new File(scalaLibrary);
-      assert file.exists();
-      JarFile jarFile = new JarFile(file);
-      JarEntry jarEntry = jarFile.getJarEntry(classFile);
-      InputStream in;
-      if (jarEntry != null) {
-        in = jarFile.getInputStream(jarEntry);
-      } else {
-        in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
-      }
+      InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
       if (in != null) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Util.copy(in, out); // does close
         return out.toByteArray();
       } else {
-        throw new RuntimeException("Class file not found: " + classFile);
+        throw new InternalCompilerException("Class file not found: " + classFile);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
