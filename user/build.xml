@@ -782,7 +782,6 @@
               <pathelement location="${gwt.tools.lib}/javax/validation/validation-api-1.0.0.GA-sources.jar" />
               <pathelement location="${gwt.root}/build/out/user/bin" />
               <pathelement location="${gwt.dev.jar}" />
-              <fileset dir="${gwt.root}/scalagwt-lib" includes="*.jar"/>
             </classpath>
             <jvmarg value="-Xmx512M" />
             <module />
