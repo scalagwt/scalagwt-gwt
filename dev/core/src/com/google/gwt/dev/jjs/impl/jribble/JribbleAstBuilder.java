@@ -441,7 +441,8 @@ public class JribbleAstBuilder {
       LocalStack local = new LocalStack(enclosingClass, body, params);
       local.pushBlock();
       JBlock jblock = body.getBlock();
-      if (!hasConstructorCall(classDef, m.getBody())) {
+      if (!isAuxiliaryConstructor(classDef, m)) {
+        //primary constructors should call synthetic init method
         JMethod initMethod = jc.getEnclosingType().getMethods().get(1);
         jblock.addStmt(new JMethodCall(UNKNOWN, thisRef((JClassType) jc.getEnclosingType()),
             initMethod).makeStatement());
@@ -904,6 +905,13 @@ public class JribbleAstBuilder {
     body.getBlock().addStmt(0, superClinitCall.makeStatement());
   }
 
+  /** Checks if method m is auxiliary constructor of classDef */
+  private static boolean isAuxiliaryConstructor(DeclaredType classDef, Method m) {
+    assert m.getIsConstructor();
+    return hasConstructorCall(classDef, m.getBody());
+  }
+
+  /** Checks if s has a call to constructor for class represented by classDef */
   private static boolean hasConstructorCall(DeclaredType classDef, Statement s) {
     //TODO(grek): Do we need to traverse whole AST for constructor call?
     if (s.getType() == StatementType.Block) {
