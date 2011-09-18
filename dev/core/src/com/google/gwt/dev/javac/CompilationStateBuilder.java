@@ -24,7 +24,7 @@ import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
-import com.google.gwt.dev.jjs.impl.JribbleAstBuilder;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleAstBuilder;
 import com.google.gwt.dev.js.ast.JsRootScope;
 import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.Name.BinaryName;

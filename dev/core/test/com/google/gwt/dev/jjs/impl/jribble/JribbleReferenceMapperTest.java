@@ -1,10 +1,11 @@
-package com.google.gwt.dev.jjs.impl;
+package com.google.gwt.dev.jjs.impl.jribble;
 
-import static com.google.gwt.dev.jjs.impl.AstUtils.toRef;
+import static com.google.gwt.dev.jjs.impl.jribble.AstUtils.toRef;
 import static com.google.gwt.thirdparty.guava.common.collect.Sets.newHashSet;
 
 import com.google.gwt.dev.jjs.SourceOrigin;
 import com.google.gwt.dev.jjs.ast.JClassType;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleReferenceMapper;
 import com.google.jribble.ast.Array;
 import com.google.jribble.ast.ClassDef;
 import com.google.jribble.ast.Primitive;

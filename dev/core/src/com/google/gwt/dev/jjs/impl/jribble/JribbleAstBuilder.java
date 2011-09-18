@@ -12,7 +12,7 @@
  * the License.
  */
 
-package com.google.gwt.dev.jjs.impl;
+package com.google.gwt.dev.jjs.impl.jribble;
 
 import com.google.gwt.dev.javac.MethodArgNamesLookup;
 import com.google.gwt.dev.jjs.InternalCompilerException;
