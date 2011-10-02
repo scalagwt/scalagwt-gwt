@@ -31,6 +31,8 @@ public final class Boolean implements Comparable<Boolean>, Serializable {
 
   // CHECKSTYLE_ON
 
+  public static final Class<Boolean> TYPE = boolean.class;
+
   public static boolean parseBoolean(String s) {
     return "true".equalsIgnoreCase(s);
   }

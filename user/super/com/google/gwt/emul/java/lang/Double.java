@@ -31,6 +31,7 @@ public final class Double extends Number implements Comparable<Double> {
   public static final double NEGATIVE_INFINITY = -1d / 0d;
   public static final double POSITIVE_INFINITY = 1d / 0d;
   public static final int SIZE = 64;
+  public static final Class<Double> TYPE = double.class;
 
   public static int compare(double x, double y) {
     if (isNaN(x)) {
