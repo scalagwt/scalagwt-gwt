@@ -94,6 +94,25 @@ public class ResolveMethodSignature extends EmptySignatureVisitor {
 
     finishBound();
 
+    int syntheticParams = 0;
+
+    if (methodData.getName().equals("<init>") && argTypes.length == (params.size() + 1)) {
+      // Non-static instance methods and constructors of non-static inner
+      // classes have an extra synthetic parameter that isn't in the source.
+      // The extra parameter does not appear in the signature. Skip this
+      // parameter in TypeOracle, too.
+      syntheticParams = 1;
+    }
+
+    if (argTypes.length != (params.size() + syntheticParams)) {
+      // TODO(jat): remove this check
+      throw new IllegalStateException(
+          "Arg count mismatch between method descriptor ("
+              + methodData.getDesc() + ") and signature ("
+              + methodData.getSignature() + ")");
+    }
+
+    
     // Set return type
     if (hasReturnType) {
       failed |= (returnType[0] == null);
@@ -102,13 +121,6 @@ public class ResolveMethodSignature extends EmptySignatureVisitor {
 
     // Create arguments
     List<CollectAnnotationData>[] argAnnotations = methodData.getArgAnnotations();
-    if (argTypes.length != params.size()) {
-      // TODO(jat): remove this check
-      throw new IllegalStateException(
-          "Arg count mismatch between method descriptor ("
-              + methodData.getDesc() + ") and signature ("
-              + methodData.getSignature() + ")");
-    }
     String[] names = argNames;
     boolean namesAreReal = argNamesAreReal;
     if (!namesAreReal) {
@@ -119,8 +131,8 @@ public class ResolveMethodSignature extends EmptySignatureVisitor {
         namesAreReal = true;
       }
     }
-    for (int i = 0; i < argTypes.length; ++i) {
-      JType argType = params.get(i)[0];
+    for (int i = syntheticParams; i < argTypes.length; ++i) {
+      JType argType = params.get(i - syntheticParams)[0];
       if (argType == null) {
         failed = true;
         continue;

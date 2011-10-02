@@ -34,10 +34,7 @@ public final class CompiledClass implements Serializable {
 
   private static final DiskCache diskCache = DiskCache.INSTANCE;
 
-  private final CompiledClass enclosingClass;
-  private final String internalName;
   private final String sourceName;
-  private final boolean isLocal;
   private transient TypeData typeData;
   private CompilationUnit unit;
   private String signatureHash;
@@ -47,6 +44,10 @@ public final class CompiledClass implements Serializable {
    * placed in the cache when the object is deserialized.
    */
   private final DiskCacheToken classBytesToken;
+  private CompiledClass enclosingClass;
+  private final String internalName;
+  private final boolean isLocal;
+  private final long lastModified;
   private transient NameEnvironmentAnswer nameEnvironmentAnswer;
 
   /**
@@ -60,13 +61,12 @@ public final class CompiledClass implements Serializable {
    *          {@code java/util/Map$Entry}. See
    *          {@link "http://java.sun.com/docs/books/jvms/second_edition/html/ClassFile.doc.html#14757"}
    */
-  CompiledClass(byte[] classBytes, CompiledClass enclosingClass, boolean isLocal,
-      String internalName) {
-    this.enclosingClass = enclosingClass;
+  public CompiledClass(byte[] classBytes, boolean isLocal, String internalName, long lastModified) {
     this.internalName = StringInterner.get().intern(internalName);
     this.sourceName = StringInterner.get().intern(InternalName.toSourceName(internalName));
     this.classBytesToken = new DiskCacheToken(diskCache.writeByteArray(classBytes));
     this.isLocal = isLocal;
+    this.lastModified = lastModified;
   }
 
   /**
@@ -111,12 +111,11 @@ public final class CompiledClass implements Serializable {
   public String getSourceName() {
     return sourceName;
   }
-  
+
   public TypeData getTypeData() {
     if (typeData == null) {
-      typeData =
-          new TypeData(getPackageName(), getSourceName(), getInternalName(), null, getBytes(),
-              getUnit().getLastModified());
+      typeData = new TypeData(getPackageName(), getSourceName(),
+          getInternalName(), null, getBytes(), lastModified);
     }
     return typeData;
   }
@@ -131,6 +130,10 @@ public final class CompiledClass implements Serializable {
    */
   public boolean isLocal() {
     return isLocal;
+  }
+  
+  public void setEnclosingClass(CompiledClass enclosingClass) {
+    this.enclosingClass = enclosingClass;
   }
 
   @Override

@@ -73,9 +73,9 @@ import java.util.TreeSet;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * An isolated {@link ClassLoader} for running all user code. All user files are
- * compiled from source code byte a {@link ByteCodeCompiler}. After compilation,
- * some byte code rewriting is performed to support
+ * An isolated {@link ClassLoader} for running all user code. Bytecode for
+ * user files is obtained via a {@link CompilationState}. Those bytecodes
+ * are then modified to support
  * <code>JavaScriptObject</code> and its subtypes.
  * 
  * TODO: we should refactor this class to move the getClassInfoByDispId,

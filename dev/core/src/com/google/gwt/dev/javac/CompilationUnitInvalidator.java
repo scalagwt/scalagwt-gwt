@@ -66,11 +66,11 @@ public class CompilationUnitInvalidator {
             currentlyValidClasses.remove(cc.getSourceName());
           }
           changed = true;
-          TreeLogger branch = logger.branch(TreeLogger.DEBUG,
+          TreeLogger branch = logger.branch(TreeLogger.WARN,
               "Compilation unit '" + unitToCheck
                   + "' is removed due to invalid reference(s):");
           for (String ref : invalidRefs) {
-            branch.log(TreeLogger.DEBUG, ref);
+            branch.log(TreeLogger.WARN, ref);
           }
         }
       }

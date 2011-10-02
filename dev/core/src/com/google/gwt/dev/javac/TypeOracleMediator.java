@@ -130,7 +130,11 @@ public class TypeOracleMediator extends TypeOracleBuilder {
       this.byteCode = classBytes;
       this.lastModifiedTime = lastModifiedTime;
     }
-    
+
+    public synchronized String getOuterClass() {
+      return getCollectClassData().getOuterClass();
+    }
+
     /**
      * Collects data about a class which only needs the bytecode and no TypeOracle
      * data structures. This is used to make the initial shallow identity pass for

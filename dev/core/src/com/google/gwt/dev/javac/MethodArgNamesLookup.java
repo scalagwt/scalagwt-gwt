@@ -17,6 +17,7 @@ package com.google.gwt.dev.javac;
 
 import com.google.gwt.core.ext.typeinfo.JAbstractMethod;
 import com.google.gwt.dev.javac.asm.CollectMethodData;
+import com.google.gwt.dev.jjs.ast.JMethod;
 import com.google.gwt.dev.util.StringInterner;
 import com.google.gwt.dev.util.collect.Maps;
 
@@ -95,6 +96,20 @@ public class MethodArgNamesLookup implements Serializable {
     StringBuilder buf = new StringBuilder();
     buf.append(enclosingType).append('.').append(method.selector);
     buf.append(method.binding.signature());
+    String key = StringInterner.get().intern(buf.toString());
+    methodArgs.put(key, argNames);
+  }
+
+  public void store(String enclosingType, JMethod method) {
+    int n = method.getParams().size();
+    String[] argNames = new String[n];
+    for (int i = 0; i < n; ++i) {
+      argNames[i] = StringInterner.get().intern(
+          String.valueOf(method.getParams().get(i).getName()));
+    }
+    StringBuilder buf = new StringBuilder();
+    buf.append(enclosingType).append('.');
+    buf.append(method.getSignature());
     String key = StringInterner.get().intern(buf.toString());
     methodArgs.put(key, argNames);
   }

@@ -44,12 +44,7 @@ public class CollectClassData extends EmptyVisitor {
     /**
      * A non-static named class nested inside another class.
      */
-    Inner {
-      @Override
-      public boolean hasHiddenConstructorArg() {
-        return true;
-      }
-    },
+    Inner,
 
     /**
      * A static nested class inside another class.
@@ -84,14 +79,6 @@ public class CollectClassData extends EmptyVisitor {
         return true;
       }
     };
-
-    /**
-     * @return true if this class type has a hidden constructor argument for the
-     *         containing instance (ie, this$0).
-     */
-    public boolean hasHiddenConstructorArg() {
-      return false;
-    }
 
     /**
      * @return true if this class type is not visible outside a method.

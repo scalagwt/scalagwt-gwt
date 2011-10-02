@@ -33,8 +33,15 @@ public class JClassType extends JDeclaredType implements CanBeSetFinal {
     }
 
     private Object readResolve() {
-      return new JClassType(name);
+      return newExternal(name);
     }
+  }
+  
+  /** 
+   * Return an instance usable as a serialization placeholder. 
+   */
+  public static JClassType newExternal(String name) {
+    return new JClassType(name);
   }
 
   private final boolean isAbstract;

@@ -33,8 +33,15 @@ public class JInterfaceType extends JDeclaredType {
     }
 
     private Object readResolve() {
-      return new JInterfaceType(name);
+      return newExternal(name);
     }
+  }
+  
+  /** 
+   * Return an instance usable as a serialization placeholder. 
+   */
+  public static JInterfaceType newExternal(String name) {
+    return new JInterfaceType(name);
   }
 
   public JInterfaceType(SourceInfo info, String name) {

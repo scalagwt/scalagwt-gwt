@@ -15,14 +15,14 @@
  */
 package com.google.gwt.dev.javac.asm;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.google.gwt.dev.asm.AnnotationVisitor;
 import com.google.gwt.dev.asm.Label;
 import com.google.gwt.dev.asm.Opcodes;
 import com.google.gwt.dev.asm.Type;
 import com.google.gwt.dev.asm.commons.EmptyVisitor;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Collects data from a single method.
@@ -41,7 +41,6 @@ public class CollectMethodData extends EmptyVisitor {
   private final List<CollectAnnotationData>[] paramAnnots;
   private boolean actualArgNames = false;
   private final int access;
-  private int syntheticArgs;
 
   /**
    * Prepare to collect data for a method from bytecode.
@@ -62,26 +61,8 @@ public class CollectMethodData extends EmptyVisitor {
     this.desc = desc;
     this.signature = signature;
     this.exceptions = exceptions;
-    syntheticArgs = 0;
     argTypes = Type.getArgumentTypes(desc);
-    // Non-static instance methods and constructors of non-static inner
-    // classes have an extra synthetic parameter that isn't in the source,
-    // so we remove it. Note that for local classes, they may or may not
-    // have this synthetic parameter depending on whether the containing
-    // method is static, but we can't get that info here. However, since
-    // local classes are dropped from TypeOracle, we don't care.
-    if (classType.hasHiddenConstructorArg() && "<init>".equals(name)) {
-      // remove "this$1" as a parameter
-      if (argTypes.length < 1) {
-        throw new IllegalStateException(
-            "Missing synthetic argument in constructor");
-      }
-      syntheticArgs = 1;
-      int n = argTypes.length - syntheticArgs;
-      Type[] newArgTypes = new Type[n];
-      System.arraycopy(argTypes, syntheticArgs, newArgTypes, 0, n);
-      argTypes = newArgTypes;
-    }
+
     argNames = new String[argTypes.length];
     paramAnnots = new List[argTypes.length];
     for (int i = 0; i < argNames.length; ++i) {
@@ -193,11 +174,7 @@ public class CollectMethodData extends EmptyVisitor {
   public AnnotationVisitor visitParameterAnnotation(int parameter, String desc,
       boolean visible) {
     CollectAnnotationData av = new CollectAnnotationData(desc, visible);
-    if (parameter >= syntheticArgs) {
-      // javac adds @Synthetic annotation on its synthetic constructor
-      // arg, so we ignore it since it isn't in the source.
-      paramAnnots[parameter - syntheticArgs].add(av);
-    }
+    paramAnnots[parameter].add(av);
     return av;
   }
 }

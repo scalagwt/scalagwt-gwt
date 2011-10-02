@@ -29,6 +29,7 @@ import com.google.gwt.dev.javac.typemodel.JParameterizedType;
 import com.google.gwt.dev.javac.typemodel.JRealClassType;
 import com.google.gwt.dev.javac.typemodel.JTypeParameter;
 import com.google.gwt.dev.javac.typemodel.JWildcardType;
+import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.util.Name;
 
 import java.util.ArrayList;
@@ -197,6 +198,9 @@ public class ResolveTypeSignature extends EmptySignatureVisitor {
   @Override
   public void visitTypeVariable(String name) {
     returnTypeRef[0] = lookup.lookup(name);
+    if (returnTypeRef[0] == null) {
+      throw new InternalCompilerException("Could not find type parameter " + name);
+    }
     // this is the last visitor called on this visitor
     visitEnd();
   }

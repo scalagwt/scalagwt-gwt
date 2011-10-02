@@ -216,6 +216,7 @@
           <pathelement location="${gwt.tools.lib}/eclipse/jdt-3.4.2.jar" />
           <pathelement location="${gwt.tools.lib}/tomcat/commons-collections-3.1.jar" />
           <pathelement location="${gwt.tools.lib}/guava/guava-r06/guava-r06-rebased-2.jar" />
+          <pathelement location="${gwt.tools.lib}/protobuf/protobuf-2.2.0/protobuf-java-rebased-2.2.0.jar" />
       </classpath>
     </gwt.javac>
   </target>
@@ -254,6 +255,20 @@
       
     <!-- Rebase the java code to match the rebased protobuf library -->
     <replace file="./core/src/com/google/gwt/dev/shell/remoteui/RemoteMessageProto.java">
+        <replacefilter token="com.google.protobuf" value="com.google.gwt.dev.protobuf"/>
+    </replace>
+  </target>
+
+
+  <target name="generate.jribbleproto.java">
+    <!-- Generate the java code using protoc 2.2.0 -->
+    <exec executable="protoc" failonerror="true">
+        <arg value="--java_out=core/src"/>
+        <arg value="./core/src/com/google/gwt/dev/jjs/impl/jribble/jribble.proto"/>
+    </exec>
+
+    <!-- Rebase the java code to match the rebased protobuf library -->
+    <replace file="./core/src/com/google/gwt/dev/jjs/impl/jribble/JribbleProtos.java">
         <replacefilter token="com.google.protobuf" value="com.google.gwt.dev.protobuf"/>
     </replace>
   </target>

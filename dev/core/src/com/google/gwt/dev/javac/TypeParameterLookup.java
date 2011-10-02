@@ -51,6 +51,9 @@ public class TypeParameterLookup {
     }
     pushEnclosingScopes(type.getEnclosingType());
     JGenericType genericType = type.isGenericType();
+    if ((genericType == null) && (type.isRawType() != null)) {
+      genericType = type.isRawType().getBaseType();
+    }
     if (genericType != null) {
       pushScope(genericType.getTypeParameters());
     }

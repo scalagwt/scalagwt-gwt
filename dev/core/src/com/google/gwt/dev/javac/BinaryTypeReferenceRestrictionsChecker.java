@@ -115,7 +115,7 @@ public class BinaryTypeReferenceRestrictionsChecker {
    * is reported against the {@link CompilationUnitDeclaration} for the first
    * instance of each unique {@link BinaryTypeBinding}.
    */
-  public static void check(CompilationUnitDeclaration cud) {
+  public static void check(CompilationUnitDeclaration cud, Set<String> jribbleBinaryNames) {
     List<BinaryTypeReferenceSite> binaryTypeReferenceSites = findAllBinaryTypeReferenceSites(cud);
     Set<BinaryTypeBinding> alreadySeenTypeBindings = new HashSet<BinaryTypeBinding>();
 
@@ -127,11 +127,17 @@ public class BinaryTypeReferenceRestrictionsChecker {
       alreadySeenTypeBindings.add(binaryTypeBinding);
 
       String fileName = String.valueOf(binaryTypeBinding.getFileName());
-      if (fileName.endsWith(".java")) {
+      if (fileName.endsWith(".java") || fileName.endsWith(".jribble")) {
         // This binary name is valid; it is a reference to a unit that was
         // compiled in a previous JDT run.
         continue;
       }
+      String binaryName = String.valueOf(binaryTypeBinding.constantPoolName()).replace('/', '.');
+      if (jribbleBinaryNames.contains(binaryName)) {
+        // References to jribble files are valid
+        continue;
+      }
+      
       String qualifiedTypeName = binaryTypeBinding.debugName();
       String error = formatBinaryTypeRefErrorMessage(qualifiedTypeName);
 

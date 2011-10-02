@@ -21,6 +21,7 @@ import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
+import com.google.gwt.dev.jjs.impl.jribble.JribbleLoader;
 import com.google.gwt.dev.js.ast.JsRootScope;
 import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.StringInterner;
@@ -92,7 +93,7 @@ public class CompilationStateBuilder {
           Map<TypeDeclaration, Binding[]> artificialRescues =
               new HashMap<TypeDeclaration, Binding[]>();
           ArtificialRescueChecker.check(cud, builder.isGenerated(), artificialRescues);
-          BinaryTypeReferenceRestrictionsChecker.check(cud);
+          BinaryTypeReferenceRestrictionsChecker.check(cud, jribbleBinaryNames);
 
           MethodArgNamesLookup methodArgs = MethodParamCollector.collect(cud);
 
@@ -153,6 +154,11 @@ public class CompilationStateBuilder {
      * The JDT compiler.
      */
     private final JdtCompiler compiler = new JdtCompiler(new UnitProcessorImpl());
+    
+    /**
+     * The set of binary names that correspond to Jribble classes.
+     */
+    private final Set<String> jribbleBinaryNames = new HashSet<String>();
 
     /**
      * Continuation state for JSNI checking.
@@ -179,6 +185,10 @@ public class CompilationStateBuilder {
 
     public Map<String, CompiledClass> getValidClasses() {
       return Collections.unmodifiableMap(allValidClasses);
+    }
+    
+    void addJribbleBinaryName(String name) {
+      jribbleBinaryNames.add(name);
     }
 
     void addValidUnit(CompilationUnit unit) {
@@ -228,12 +238,29 @@ public class CompilationStateBuilder {
         };
         buildThread.setName("CompilationUnitBuilder");
         buildThread.start();
+
+        ArrayList<CompilationUnitBuilder> javaBuilders = new ArrayList<CompilationUnitBuilder>();
+        ArrayList<CompilationUnitBuilder> jribbleBuilders = new ArrayList<CompilationUnitBuilder>();
+        for (CompilationUnitBuilder builder : builders) {
+          if (builder.isJribble()) {
+            jribbleBuilders.add(builder);
+          } else {
+            javaBuilders.add(builder);
+          }
+        }
+
         Event jdtCompilerEvent = SpeedTracerLogger.start(eventType);
         try {
-          compiler.doCompile(builders);
+          compiler.doCompile(javaBuilders);
+          
+          JribbleLoader jribbleLoader = new JribbleLoader(Thread
+              .currentThread().getContextClassLoader(), buildQueue);
+          jribbleLoader.load(jribbleBuilders);
         } finally {
           jdtCompilerEvent.end();
         }
+
+
         buildQueue.add(sentinel);
         try {
           buildThread.join();
@@ -411,6 +438,10 @@ public class CompilationStateBuilder {
     for (Resource resource : resources) {
       // Create a builder for all incoming units.
       CompilationUnitBuilder builder = CompilationUnitBuilder.create(resource);
+
+      if (builder.isJribble()) {
+        compileMoreLater.addJribbleBinaryName(builder.getTypeName());
+      }
 
       CompilationUnit cachedUnit = unitCache.find(resource.getPathPrefix() + resource.getPath());
 

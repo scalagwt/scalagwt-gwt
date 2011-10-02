@@ -44,6 +44,7 @@ public class DefaultFilters {
   public static enum FilterFileType {
     RESOURCE_FILES(null), //
     JAVA_FILES(".java"), //
+    JRIBBLE_FILES(".jribble"), //
     CLASS_FILES(".class");
 
     private final String suffix;
@@ -296,6 +297,13 @@ public class DefaultFilters {
       boolean caseSensitive) {
     return getCustomFilter(includeList, excludeList, skipList, defaultExcludes,
         caseSensitive, FilterFileType.JAVA_FILES);
+  }
+
+  public ResourceFilter customJribbleFilter(String includeList[],
+      String excludeList[], String skipList[], boolean defaultExcludes,
+      boolean caseSensitive) {
+    return getCustomFilter(includeList, excludeList, skipList, defaultExcludes,
+        caseSensitive, FilterFileType.JRIBBLE_FILES);
   }
 
   public ResourceFilter customResourceFilter(String includeList[],

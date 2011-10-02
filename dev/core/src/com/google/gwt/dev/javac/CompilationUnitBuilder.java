@@ -15,17 +15,18 @@
  */
 package com.google.gwt.dev.javac;
 
-import com.google.gwt.dev.jjs.ast.JDeclaredType;
-import com.google.gwt.dev.resource.Resource;
-import com.google.gwt.dev.util.Util;
-
-import org.eclipse.jdt.core.compiler.CategorizedProblem;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
+
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
+
+import com.google.gwt.dev.jjs.InternalCompilerException;
+import com.google.gwt.dev.jjs.ast.JDeclaredType;
+import com.google.gwt.dev.resource.Resource;
+import com.google.gwt.dev.util.Util;
 
 /**
  * Builds a {@link CompilationUnit}.
@@ -48,10 +49,20 @@ public abstract class CompilationUnitBuilder {
     public String getLocation() {
       return getLocationFor(generatedUnit);
     }
+    
+    @Override
+    public long getLastModified() {
+      return generatedUnit.creationTime();
+    }
 
     @Override
     public String getTypeName() {
       return generatedUnit.getTypeName();
+    }
+
+    @Override
+    public boolean isJribble() {
+      return false;
     }
 
     @Override
@@ -71,7 +82,7 @@ public abstract class CompilationUnitBuilder {
     @Override
     boolean isGenerated() {
       return true;
-    }
+    }    
   }
 
   static class ResourceCompilationUnitBuilder extends CompilationUnitBuilder {
@@ -99,6 +110,7 @@ public abstract class CompilationUnitBuilder {
       return contentId;
     }
 
+    @Override
     public long getLastModified() {
       if (lastModifed < 0) {
         return resource.getLastModified();
@@ -120,6 +132,15 @@ public abstract class CompilationUnitBuilder {
     @Override
     public String getTypeName() {
       return typeName;
+    }
+    
+    @Override
+    public boolean isJribble() {
+      return resource.getPath().endsWith(".jribble");
+    }
+    
+    public InputStream readSourceBinary() throws IOException {
+      return resource.openContents();
     }
 
     @Override
@@ -264,6 +285,8 @@ public abstract class CompilationUnitBuilder {
   public abstract ContentId getContentId();
 
   public abstract String getLocation();
+  
+  public abstract long getLastModified();
 
   public String getSource() {
     if (source == null) {
@@ -274,12 +297,17 @@ public abstract class CompilationUnitBuilder {
 
   public abstract String getTypeName();
 
-  public CompilationUnitBuilder setClasses(List<CompiledClass> compiledClasses) {
-    this.compiledClasses = compiledClasses;
-    return this;
+  public abstract boolean isJribble();
+  
+  /**
+   * Read in the source of this unit as binary. Only available if
+   * {@link #isJribble} is true.
+   */
+  public InputStream readSourceBinary() throws IOException {
+    throw new InternalCompilerException("readBinary() is not supported on this class");
   }
 
-  public CompilationUnitBuilder setCompiledClasses(List<CompiledClass> compiledClasses) {
+  public CompilationUnitBuilder setClasses(List<CompiledClass> compiledClasses) {
     this.compiledClasses = compiledClasses;
     return this;
   }

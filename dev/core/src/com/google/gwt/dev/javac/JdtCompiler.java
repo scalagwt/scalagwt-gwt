@@ -233,24 +233,26 @@ public class JdtCompiler {
     @Override
     public void process(CompilationUnitDeclaration cud, int i) {
       super.process(cud, i);
+      ICompilationUnit icu = cud.compilationResult().compilationUnit;
+      Adapter adapter = (Adapter) icu;
+      CompilationUnitBuilder builder = adapter.getBuilder();
+
       ClassFile[] classFiles = cud.compilationResult().getClassFiles();
       Map<ClassFile, CompiledClass> results = new LinkedHashMap<ClassFile, CompiledClass>();
       for (ClassFile classFile : classFiles) {
-        createCompiledClass(classFile, results);
+        createCompiledClass(classFile, results, builder.getLastModified());
       }
       List<CompiledClass> compiledClasses = new ArrayList<CompiledClass>(results.values());
       addBinaryTypes(compiledClasses);
 
-      ICompilationUnit icu = cud.compilationResult().compilationUnit;
-      Adapter adapter = (Adapter) icu;
-      CompilationUnitBuilder builder = adapter.getBuilder();
       processor.process(builder, cud, compiledClasses);
     }
 
     /**
      * Recursively creates enclosing types first.
      */
-    private void createCompiledClass(ClassFile classFile, Map<ClassFile, CompiledClass> results) {
+    private void createCompiledClass(ClassFile classFile,
+        Map<ClassFile, CompiledClass> results, long lastModified) {
       if (results.containsKey(classFile)) {
         // Already created.
         return;
@@ -258,14 +260,14 @@ public class JdtCompiler {
       CompiledClass enclosingClass = null;
       if (classFile.enclosingClassFile != null) {
         ClassFile enclosingClassFile = classFile.enclosingClassFile;
-        createCompiledClass(enclosingClassFile, results);
+        createCompiledClass(enclosingClassFile, results, lastModified);
         enclosingClass = results.get(enclosingClassFile);
         assert enclosingClass != null;
       }
       String internalName = CharOperation.charToString(classFile.fileName());
-      CompiledClass result =
-          new CompiledClass(classFile.getBytes(), enclosingClass, isLocalType(classFile),
-              internalName);
+      CompiledClass result = new CompiledClass(classFile.getBytes(),
+          isLocalType(classFile), internalName, lastModified);
+      result.setEnclosingClass(enclosingClass);
       results.put(classFile, result);
     }
   }
@@ -607,7 +609,8 @@ public class JdtCompiler {
       @Override
       protected void onBinaryTypeRef(BinaryTypeBinding referencedType,
           CompilationUnitDeclaration unitOfReferrer, Expression expression) {
-        if (!String.valueOf(referencedType.getFileName()).endsWith(".java")) {
+        String fileName = String.valueOf(referencedType.getFileName());
+        if (!fileName.endsWith(".java") && !fileName.endsWith(".jribble")) {
           // ignore binary-only annotations
           return;
         }

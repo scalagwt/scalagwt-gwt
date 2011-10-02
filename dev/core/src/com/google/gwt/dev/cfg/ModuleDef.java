@@ -62,7 +62,7 @@ public class ModuleDef {
   private static final ResourceFilter NON_JAVA_RESOURCES = new ResourceFilter() {
     @Override
     public boolean allows(String path) {
-      return !path.endsWith(".java") && !path.endsWith(".class");
+      return !path.endsWith(".java") && !path.endsWith(".jribble") && !path.endsWith(".class");
     }
   };
 
@@ -210,10 +210,14 @@ public class ModuleDef {
     if (lazySourceOracle != null) {
       throw new IllegalStateException("Already normalized");
     }
-    PathPrefix pathPrefix =
+    PathPrefix javaPathPrefix =
         new PathPrefix(sourcePackage, defaultFilters.customJavaFilter(includeList, excludeList,
             skipList, defaultExcludes, caseSensitive), isSuperSource, excludeList);
-    sourcePrefixSet.add(pathPrefix);
+    sourcePrefixSet.add(javaPathPrefix);
+    PathPrefix jribblePathPrefix =
+        new PathPrefix(sourcePackage, defaultFilters.customJribbleFilter(includeList, excludeList,
+            skipList, defaultExcludes, caseSensitive), isSuperSource, excludeList);
+    sourcePrefixSet.add(jribblePathPrefix);
   }
 
   public void addSuperSourcePackage(String superSourcePackage, String[] includeList,
