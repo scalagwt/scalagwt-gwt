@@ -32,12 +32,12 @@ public class CompiledClassTest extends TestCase {
    * Test for {@link CompiledClass#getSourceName()}.
    */
   public void testSourceName() throws Exception {
-    CompiledClass compiledClass = new CompiledClass(dummyByteCode, null, false, DUMMY_NAME);
+    CompiledClass compiledClass = new CompiledClass(dummyByteCode, false, DUMMY_NAME, 0);
     assertEquals("com.example.DeadBeef", compiledClass.getSourceName());
   }
   
   public void testCompiledClassSerialization() throws Exception {
-    CompiledClass writeObject = new CompiledClass(dummyByteCode, null, false, DUMMY_NAME);
+    CompiledClass writeObject = new CompiledClass(dummyByteCode, false, DUMMY_NAME, 0);
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     Util.writeObjectToStream(outputStream, writeObject);
     ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
