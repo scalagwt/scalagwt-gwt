@@ -64,6 +64,11 @@ public abstract class CompilationUnitBuilder {
     public boolean isJribble() {
       return false;
     }
+    
+    @Override
+    public boolean isBinaryJribble() {
+      return false;
+    }
 
     @Override
     protected String doGetSource() {
@@ -136,6 +141,12 @@ public abstract class CompilationUnitBuilder {
     
     @Override
     public boolean isJribble() {
+      String path = resource.getPath();
+      return path.endsWith(".jribble") || path.endsWith(".jribbletxt");
+    }
+    
+    @Override
+    public boolean isBinaryJribble() {
       return resource.getPath().endsWith(".jribble");
     }
     
@@ -294,6 +305,8 @@ public abstract class CompilationUnitBuilder {
   public abstract String getTypeName();
 
   public abstract boolean isJribble();
+  
+  public abstract boolean isBinaryJribble();
   
   /**
    * Read in the source of this unit as binary. Only available if

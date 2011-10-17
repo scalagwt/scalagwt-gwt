@@ -18,6 +18,8 @@ import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.Util;
 import com.google.gwt.dev.util.collect.HashMap;
 
+import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.*;
+
 /**
  * Loads Jribble classes into {@link CompilationUnitBuilder}s. It gets the ASTs
  * via protobufs saved in {@link Resource}s, and it gets TypeOracle information
@@ -52,11 +54,17 @@ public class JribbleLoader {
 
       JribbleProtos.DeclaredType proto;
       try {
-        InputStream source = builder.readSourceBinary();
-        CodedInputStream codedSource = CodedInputStream.newInstance(source);
-        codedSource.setRecursionLimit(400);
-        proto = JribbleProtos.DeclaredType.parseFrom(codedSource);
-        source.close();
+        if (builder.isBinaryJribble()) {
+          InputStream source = builder.readSourceBinary();
+          CodedInputStream codedSource = CodedInputStream.newInstance(source);
+          codedSource.setRecursionLimit(400);
+          proto = JribbleProtos.DeclaredType.parseFrom(codedSource);
+          source.close();
+        } else {
+          DeclaredType.Builder b = DeclaredType.newBuilder();
+          com.google.gwt.dev.protobuf.TextFormat.merge(builder.getSource(), b);
+          proto = b.build();
+        }
       } catch (IOException e) {
         throw new InternalCompilerException("Error loading Jribble for "
             + builder.getTypeName(), e);

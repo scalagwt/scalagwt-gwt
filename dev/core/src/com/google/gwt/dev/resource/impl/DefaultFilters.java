@@ -45,6 +45,7 @@ public class DefaultFilters {
     RESOURCE_FILES(null), //
     JAVA_FILES(".java"), //
     JRIBBLE_FILES(".jribble"), //
+    JRIBBLE_TEXT_FILES(".jribbletxt"), //
     CLASS_FILES(".class");
 
     private final String suffix;
@@ -304,6 +305,13 @@ public class DefaultFilters {
       boolean caseSensitive) {
     return getCustomFilter(includeList, excludeList, skipList, defaultExcludes,
         caseSensitive, FilterFileType.JRIBBLE_FILES);
+  }
+  
+  public ResourceFilter customJribbleTextFilter(String includeList[],
+      String excludeList[], String skipList[], boolean defaultExcludes,
+      boolean caseSensitive) {
+    return getCustomFilter(includeList, excludeList, skipList, defaultExcludes,
+        caseSensitive, FilterFileType.JRIBBLE_TEXT_FILES);
   }
 
   public ResourceFilter customResourceFilter(String includeList[],

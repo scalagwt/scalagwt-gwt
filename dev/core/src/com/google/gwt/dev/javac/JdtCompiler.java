@@ -610,7 +610,8 @@ public class JdtCompiler {
       protected void onBinaryTypeRef(BinaryTypeBinding referencedType,
           CompilationUnitDeclaration unitOfReferrer, Expression expression) {
         String fileName = String.valueOf(referencedType.getFileName());
-        if (!fileName.endsWith(".java") && !fileName.endsWith(".jribble")) {
+        if (!fileName.endsWith(".java") && !fileName.endsWith(".jribble") &&
+            !fileName.endsWith(".jribbletxt")) {
           // ignore binary-only annotations
           return;
         }

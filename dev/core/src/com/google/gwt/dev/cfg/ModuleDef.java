@@ -62,7 +62,8 @@ public class ModuleDef {
   private static final ResourceFilter NON_JAVA_RESOURCES = new ResourceFilter() {
     @Override
     public boolean allows(String path) {
-      return !path.endsWith(".java") && !path.endsWith(".jribble") && !path.endsWith(".class");
+      return !path.endsWith(".java") && !path.endsWith(".jribble") && 
+        !path.endsWith(".jribbletxt") && !path.endsWith(".class");
     }
   };
 
@@ -220,6 +221,10 @@ public class ModuleDef {
         new PathPrefix(sourcePackage, defaultFilters.customJribbleFilter(includeList, excludeList,
             skipList, defaultExcludes, caseSensitive), isSuperSource, excludeList);
     sourcePrefixSet.add(jribblePathPrefix);
+    PathPrefix jribbleTextPathPrefix =
+      new PathPrefix(sourcePackage, defaultFilters.customJribbleTextFilter(includeList, excludeList,
+          skipList, defaultExcludes, caseSensitive), isSuperSource, excludeList);
+    sourcePrefixSet.add(jribbleTextPathPrefix);
   }
 
   public void addSuperSourcePackage(String superSourcePackage, String[] includeList,
