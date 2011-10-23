@@ -19,11 +19,60 @@ import com.google.gwt.dom.client.TableCellElement;
 import com.google.gwt.dom.client.TableElement;
 import com.google.gwt.dom.client.TableRowElement;
 import com.google.gwt.dom.client.TableSectionElement;
+import com.google.gwt.user.client.ui.RootPanel;
 
 /**
  * Tests for {@link DataGrid}.
  */
 public class DataGridTest extends AbstractCellTableTestBase<DataGrid<String>> {
+
+  /**
+   * Test that if a header builder does not add any rows, the header is hidden.
+   */
+  public void testHeaderBuilderEmpty() {
+    DataGrid<String> table = createAbstractHasData();
+    RootPanel.get().add(table);
+    HeaderBuilder<String> emptyHeader = new AbstractHeaderOrFooterBuilder<String>(table, false) {
+      @Override
+      protected boolean buildHeaderOrFooterImpl() {
+        return false;
+      }
+    };
+    HeaderBuilder<String> notEmptyHeader = new AbstractHeaderOrFooterBuilder<String>(table, false) {
+      @Override
+      protected boolean buildHeaderOrFooterImpl() {
+        return true;
+      }
+    };
+    FooterBuilder<String> emptyFooter = new AbstractHeaderOrFooterBuilder<String>(table, true) {
+      @Override
+      protected boolean buildHeaderOrFooterImpl() {
+        return false;
+      }
+    };
+    FooterBuilder<String> notEmptyFooter = new AbstractHeaderOrFooterBuilder<String>(table, true) {
+      @Override
+      protected boolean buildHeaderOrFooterImpl() {
+        return true;
+      }
+    };
+
+    // Header is empty, footer is not.
+    table.setHeaderBuilder(emptyHeader);
+    table.setFooterBuilder(notEmptyFooter);
+    table.getPresenter().flush();
+    assertFalse(table.tableHeader.isAttached());
+    assertTrue(table.tableFooter.isAttached());
+
+    // Footer is empty, header is not.
+    table.setHeaderBuilder(notEmptyHeader);
+    table.setFooterBuilder(emptyFooter);
+    table.getPresenter().flush();
+    assertTrue(table.tableHeader.isAttached());
+    assertFalse(table.tableFooter.isAttached());
+
+    RootPanel.get().remove(table);
+  }
 
   @Override
   protected DataGrid<String> createAbstractHasData() {
@@ -42,6 +91,9 @@ public class DataGridTest extends AbstractCellTableTestBase<DataGrid<String>> {
   protected int getHeaderCount(DataGrid<String> table) {
     TableElement tableElem = table.tableHeader.getElement().cast();
     TableSectionElement thead = tableElem.getTHead();
+    if (thead.getRows().getLength() == 0) {
+      return 0;
+    }
     TableRowElement tr = thead.getRows().getItem(0);
     return tr.getCells().getLength();
   }

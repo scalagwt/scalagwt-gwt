@@ -41,7 +41,6 @@ public class CachedCompilationUnit extends CompilationUnit {
   private final CategorizedProblem[] problems;
   private final String resourceLocation;
   private final String resourcePath;
-  private final DiskCacheToken sourceToken;
   private final String typeName;
 
   /**
@@ -54,7 +53,7 @@ public class CachedCompilationUnit extends CompilationUnit {
   public CachedCompilationUnit(CachedCompilationUnit unit, long lastModified,
       String resourceLocation) {
     assert unit != null;
-    this.compiledClasses = unit.getCompiledClasses();
+    this.compiledClasses = CompiledClass.copyForUnit(unit.getCompiledClasses(), this);
     this.contentId = unit.getContentId();
     this.dependencies = unit.getDependencies();
     this.resourcePath = unit.getResourcePath();
@@ -67,7 +66,6 @@ public class CachedCompilationUnit extends CompilationUnit {
     this.problems = unit.problems;
     this.astToken = unit.astToken;
     this.astVersion = unit.astVersion;
-    this.sourceToken = unit.sourceToken;
 
     // Override these fields
     this.lastModified = lastModified;
@@ -85,9 +83,9 @@ public class CachedCompilationUnit extends CompilationUnit {
    *          serialized AST types.
    */
   @SuppressWarnings("deprecation")
-  CachedCompilationUnit(CompilationUnit unit, long sourceToken, long astToken) {
+  CachedCompilationUnit(CompilationUnit unit, long astToken) {
     assert unit != null;
-    this.compiledClasses = unit.getCompiledClasses();
+    this.compiledClasses = CompiledClass.copyForUnit(unit.getCompiledClasses(), this);
     this.contentId = unit.getContentId();
     this.dependencies = unit.getDependencies();
     this.resourceLocation = unit.getResourceLocation();
@@ -110,9 +108,8 @@ public class CachedCompilationUnit extends CompilationUnit {
     }
     this.astToken = new DiskCacheToken(astToken);
     this.astVersion = GwtAstBuilder.getSerializationVersion();
-    this.sourceToken = new DiskCacheToken(sourceToken);
   }
-
+  
   @Override
   public CachedCompilationUnit asCachedCompilationUnit() {
     return this;
@@ -146,12 +143,6 @@ public class CachedCompilationUnit extends CompilationUnit {
   @Override
   public String getResourcePath() {
     return resourcePath;
-  }
-
-  @Override
-  @Deprecated
-  public String getSource() {
-    return sourceToken.readString();
   }
 
   @Override

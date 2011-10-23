@@ -42,7 +42,7 @@ import javax.validation.metadata.BeanDescriptor;
  * <p>
  * Class that creates the validator for the given input class.
  */
-public class ValidatorCreator extends AbstractCreator {
+public final class ValidatorCreator extends AbstractCreator {
 
   /**
    * The beans to validate in source declaration order.
@@ -92,10 +92,6 @@ public class ValidatorCreator extends AbstractCreator {
     writeGetConstraintsForClass(sourceWriter);
     sourceWriter.println();
     writeGwtValidate(sourceWriter);
-  }
-
-  private String getSimpleName() {
-    return validatorType.getSimpleSourceName() + "Impl";
   }
 
   private void writeConstructor(SourceWriter sw) {

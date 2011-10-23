@@ -17,6 +17,7 @@ package com.google.gwt.user.cellview.client;
 
 import com.google.gwt.cell.client.Cell;
 import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.BrowserEvents;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.EventTarget;
@@ -93,7 +94,7 @@ public abstract class AbstractHasData<T> extends Composite implements HasData<T>
     public void onCellPreview(CellPreviewEvent<T> event) {
       NativeEvent nativeEvent = event.getNativeEvent();
       String eventType = event.getNativeEvent().getType();
-      if ("keydown".equals(eventType) && !event.isCellEditing()) {
+      if (BrowserEvents.KEYDOWN.equals(eventType) && !event.isCellEditing()) {
         /*
          * Handle keyboard navigation, unless the cell is being edited. If the
          * cell is being edited, we do not want to change rows.
@@ -131,24 +132,23 @@ public abstract class AbstractHasData<T> extends Composite implements HasData<T>
             handledEvent(event);
             return;
         }
-      } else if ("click".equals(eventType)) {
+      } else if (BrowserEvents.CLICK.equals(eventType)) {
         /*
          * Move keyboard focus to the clicked row, even if the Cell is being
          * edited. Unlike key events, we aren't moving the currently selected
          * row, just updating it based on where the user clicked.
          */
         int relRow = event.getIndex() - display.getPageStart();
-        if (display.getKeyboardSelectedRow() != relRow) {
-          // If a natively focusable element was just clicked, then do not steal
-          // focus.
-          boolean isFocusable = false;
-          Element target = Element.as(event.getNativeEvent().getEventTarget());
-          isFocusable = CellBasedWidgetImpl.get().isFocusable(target);
-          display.setKeyboardSelectedRow(relRow, !isFocusable);
 
-          // Do not cancel the event as the click may have occurred on a Cell.
-        }
-      } else if ("focus".equals(eventType)) {
+        // If a natively focusable element was just clicked, then do not steal
+        // focus.
+        boolean isFocusable = false;
+        Element target = Element.as(event.getNativeEvent().getEventTarget());
+        isFocusable = CellBasedWidgetImpl.get().isFocusable(target);
+        display.setKeyboardSelectedRow(relRow, !isFocusable);
+
+        // Do not cancel the event as the click may have occurred on a Cell.
+      } else if (BrowserEvents.FOCUS.equals(eventType)) {
         // Move keyboard focus to match the currently focused element.
         int relRow = event.getIndex() - display.getPageStart();
         if (display.getKeyboardSelectedRow() != relRow) {
@@ -485,12 +485,12 @@ public abstract class AbstractHasData<T> extends Composite implements HasData<T>
 
     // Sink events.
     Set<String> eventTypes = new HashSet<String>();
-    eventTypes.add("focus");
-    eventTypes.add("blur");
-    eventTypes.add("keydown"); // Used for keyboard navigation.
-    eventTypes.add("keyup"); // Used by subclasses for selection.
-    eventTypes.add("click"); // Used by subclasses for selection.
-    eventTypes.add("mousedown"); // No longer used, but here for legacy support.
+    eventTypes.add(BrowserEvents.FOCUS);
+    eventTypes.add(BrowserEvents.BLUR);
+    eventTypes.add(BrowserEvents.KEYDOWN); // Used for keyboard navigation.
+    eventTypes.add(BrowserEvents.KEYUP); // Used by subclasses for selection.
+    eventTypes.add(BrowserEvents.CLICK); // Used by subclasses for selection.
+    eventTypes.add(BrowserEvents.MOUSEDOWN); // No longer used, but here for legacy support.
     CellBasedWidgetImpl.get().sinkEvents(this, eventTypes);
 
     // Add a default selection event manager.
@@ -643,6 +643,19 @@ public abstract class AbstractHasData<T> extends Composite implements HasData<T>
     return tabIndex;
   }
 
+  /**
+   * Get the key for the specified value. If a keyProvider is not specified or the value is null,
+   * the value is returned. If the key provider is specified, it is used to get the key from
+   * the value.
+   * 
+   * @param value the value
+   * @return the key
+   */
+  public Object getValueKey(T value) {
+    ProvidesKey<T> keyProvider = getKeyProvider();
+    return (keyProvider == null || value == null) ? value : keyProvider.getKey(value);
+  }
+  
   @Override
   public T getVisibleItem(int indexOnPage) {
     checkRowBounds(indexOnPage);
@@ -704,18 +717,18 @@ public abstract class AbstractHasData<T> extends Composite implements HasData<T>
     super.onBrowserEvent(event);
 
     String eventType = event.getType();
-    if ("focus".equals(eventType)) {
+    if (BrowserEvents.FOCUS.equals(eventType)) {
       // Remember the focus state.
       isFocused = true;
       onFocus();
-    } else if ("blur".equals(eventType)) {
+    } else if (BrowserEvents.BLUR.equals(eventType)) {
       // Remember the blur state.
       isFocused = false;
       onBlur();
-    } else if ("keydown".equals(eventType)) {
+    } else if (BrowserEvents.KEYDOWN.equals(eventType)) {
       // A key event indicates that we already have focus.
       isFocused = true;
-    } else if ("mousedown".equals(eventType)
+    } else if (BrowserEvents.MOUSEDOWN.equals(eventType)
         && CellBasedWidgetImpl.get().isFocusable(Element.as(target))) {
       // If a natively focusable element was just clicked, then we must have
       // focus.
@@ -936,7 +949,7 @@ public abstract class AbstractHasData<T> extends Composite implements HasData<T>
     this.tabIndex = index;
     setKeyboardSelected(getKeyboardSelectedRow(), true, false);
   }
-
+  
   @Override
   public final void setVisibleRange(int start, int length) {
     setVisibleRange(new Range(start, length));
@@ -1019,17 +1032,6 @@ public abstract class AbstractHasData<T> extends Composite implements HasData<T>
    * @return the keyboard selected element
    */
   protected abstract Element getKeyboardSelectedElement();
-
-  /**
-   * Get the key for the specified value.
-   * 
-   * @param value the value
-   * @return the key
-   */
-  protected Object getValueKey(T value) {
-    ProvidesKey<T> keyProvider = getKeyProvider();
-    return (keyProvider == null || value == null) ? value : keyProvider.getKey(value);
-  }
 
   /**
    * Check if keyboard navigation is being suppressed, such as when the user is

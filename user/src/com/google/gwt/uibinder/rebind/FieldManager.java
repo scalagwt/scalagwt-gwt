@@ -15,14 +15,14 @@
  */
 package com.google.gwt.uibinder.rebind;
 
-import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.core.ext.typeinfo.JClassType;
 import com.google.gwt.core.ext.typeinfo.JType;
 import com.google.gwt.core.ext.typeinfo.TypeOracle;
+import com.google.gwt.uibinder.attributeparsers.FieldReferenceConverter;
 import com.google.gwt.uibinder.rebind.model.ImplicitCssResource;
-import com.google.gwt.uibinder.rebind.model.OwnerField;
 import com.google.gwt.uibinder.rebind.model.OwnerClass;
+import com.google.gwt.uibinder.rebind.model.OwnerField;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,12 +31,27 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * This class handles all {@link FieldWriter} instances created for the current
  * template.
  */
 public class FieldManager {
+
+  static class FieldAndSource {
+    final FieldWriter field;
+    final XMLElement element;
+    
+    public FieldAndSource(FieldWriter field, XMLElement element) {
+      this.field = field;
+      this.element = element;
+    }
+  }
+
+  private static final String GETTER_PREFIX = "get_";
+
+  private static final String BUILDER_PREFIX = "build_";
 
   private static final String DUPLICATE_FIELD_ERROR = "Duplicate declaration of field %1$s.";
 
@@ -53,15 +68,26 @@ public class FieldManager {
     }
   };
 
+  private static final Pattern JAVA_IDENTIFIER =
+      Pattern.compile("[\\p{L}_$][\\p{L}\\p{N}_$]*");
+
   public static String getFieldBuilder(String fieldName) {
-    return String.format("build_%s()", fieldName);
+    return String.format(BUILDER_PREFIX + "%s()", fieldName);
   }
 
   public static String getFieldGetter(String fieldName) {
-    return String.format("get_%s()", fieldName);
+    return String.format(GETTER_PREFIX + "%s()", fieldName);
   }
 
-  private final TypeOracle types;
+  public static String stripFieldGetter(String fieldName) {
+    if (fieldName.startsWith(GETTER_PREFIX)) {
+      return fieldName.substring(GETTER_PREFIX.length());
+    }
+    return fieldName;
+  }
+
+  private final TypeOracle typeOracle;
+
   private final MortalLogger logger;
 
   /**
@@ -74,7 +100,7 @@ public class FieldManager {
   /**
    * A stack of the fields.
    */
-  private final LinkedList<FieldWriter> parsedFieldStack = new LinkedList<FieldWriter>();
+  private final LinkedList<FieldAndSource> parsedFieldStack = new LinkedList<FieldAndSource>();
 
   private LinkedHashMap<String, FieldReference> fieldReferences =
       new LinkedHashMap<String, FieldReference>();
@@ -91,8 +117,8 @@ public class FieldManager {
    */
   private final boolean useLazyWidgetBuilders;
 
-  public FieldManager(TypeOracle types, MortalLogger logger, boolean useLazyWidgetBuilders) {
-    this.types = types;
+  public FieldManager(TypeOracle typeOracle, MortalLogger logger, boolean useLazyWidgetBuilders) {
+    this.typeOracle = typeOracle;
     this.logger = logger;
     this.useLazyWidgetBuilders = useLazyWidgetBuilders;
   }
@@ -103,8 +129,7 @@ public class FieldManager {
    *  <li> f_html1 = get_f_html1()
    */
   public String convertFieldToGetter(String fieldName) {
-    // TODO(hermes, rjrjr, rdcastro): revisit this and evaluate if this
-    // conversion can be made directly in FieldWriter.
+    // could this conversion can be moved to FieldWriter?
     if (!useLazyWidgetBuilders) {
       return fieldName;
     }
@@ -112,6 +137,15 @@ public class FieldManager {
     int count = getGetterCounter(fieldName) + 1;
     gettersCounter.put(fieldName, count);
     return getFieldGetter(fieldName);
+  }
+
+  public FieldReference findFieldReference(String expressionIn) {
+    String expression = expressionIn;
+    if (useLazyWidgetBuilders) {
+      expression = stripFieldGetter(expression);
+    }
+    String converted = FieldReferenceConverter.expressionToPath(expression);
+    return fieldReferences.get(converted);
   }
 
   /**
@@ -148,11 +182,12 @@ public class FieldManager {
   }
 
   /**
+   * @param source the element this field was parsed from 
    * @param fieldWriter the field to push on the top of the
    *          {@link #parsedFieldStack}
    */
-  public void push(FieldWriter fieldWriter) {
-    parsedFieldStack.addFirst(fieldWriter);
+  public void push(XMLElement source, FieldWriter fieldWriter) {
+    parsedFieldStack.addFirst(new FieldAndSource(fieldWriter, source));
   }
 
   /**
@@ -185,7 +220,7 @@ public class FieldManager {
 
   public FieldWriter registerField(String type, String fieldName)
       throws UnableToCompleteException {
-    return registerField(types.findType(type), fieldName);
+    return registerField(typeOracle.findType(type), fieldName);
   }
 
   /**
@@ -207,7 +242,7 @@ public class FieldManager {
   public FieldWriter registerFieldForGeneratedCssResource(
       ImplicitCssResource cssResource) throws UnableToCompleteException {
     FieldWriter field = new FieldWriterOfGeneratedCssResource(
-        types.findType(String.class.getCanonicalName()), cssResource, logger);
+        typeOracle.findType(String.class.getCanonicalName()), cssResource, logger);
     return registerField(cssResource.getName(), field);
   }
 
@@ -264,15 +299,16 @@ public class FieldManager {
    * Called to register a <code>{field.reference}</code> encountered during
    * parsing, to be validated against the type oracle once parsing is complete.
    */
-  public void registerFieldReference(String fieldReferenceString, JType type) {
-    FieldReference fieldReference = fieldReferences.get(fieldReferenceString);
+  public void registerFieldReference(XMLElement source, String fieldReferenceString, JType... types) {
+    source = source != null ? source : parsedFieldStack.peek().element;
 
+    FieldReference fieldReference = fieldReferences.get(fieldReferenceString);
     if (fieldReference == null) {
-      fieldReference = new FieldReference(fieldReferenceString, this, types);
+      fieldReference = new FieldReference(fieldReferenceString, source, this, typeOracle);
       fieldReferences.put(fieldReferenceString, fieldReference);
     }
 
-    fieldReference.addLeftHandType(type);
+    fieldReference.addLeftHandType(source, types);
   }
 
   /**
@@ -301,8 +337,7 @@ public class FieldManager {
 
     for (Map.Entry<String, FieldReference> entry : fieldReferences.entrySet()) {
       FieldReference ref = entry.getValue();
-      MonitoredLogger monitoredLogger = new MonitoredLogger(
-          logger.getTreeLogger().branch(TreeLogger.TRACE, "validating " + ref));
+      MonitoredLogger monitoredLogger = new MonitoredLogger(logger);
       ref.validate(monitoredLogger);
       failed |= monitoredLogger.hasErrors();
     }
@@ -310,7 +345,7 @@ public class FieldManager {
       throw new UnableToCompleteException();
     }
   }
-
+  
   /**
    * Outputs the getter and builder definitions for all fields.
    * {@see com.google.gwt.uibinder.rebind.AbstractFieldWriter#writeFieldDefinition}.
@@ -335,13 +370,17 @@ public class FieldManager {
    * Writes all stored gwt fields.
    *
    * @param writer the writer to output
-   * @param ownerTypeName the name of the class being processed
    */
-  public void writeGwtFieldsDeclaration(IndentedWriter writer,
-      String ownerTypeName) throws UnableToCompleteException {
+  public void writeGwtFieldsDeclaration(IndentedWriter writer) throws UnableToCompleteException {
     Collection<FieldWriter> fields = fieldsMap.values();
     for (FieldWriter field : fields) {
       field.write(writer);
+    }
+  }
+
+  private void ensureValidity(String fieldName) throws UnableToCompleteException {
+    if (!JAVA_IDENTIFIER.matcher(fieldName).matches()) {
+      logger.die("Illegal field name \"%s\"", fieldName);
     }
   }
 
@@ -353,24 +392,21 @@ public class FieldManager {
     return (count == null) ? 0 : count;
   }
 
-  private FieldWriter peek() {
-    return parsedFieldStack.getFirst();
-  }
-
   private FieldWriter registerField(String fieldName, FieldWriter field)
       throws UnableToCompleteException {
+    ensureValidity(fieldName);
     requireUnique(fieldName);
     fieldsMap.put(fieldName, field);
 
     if (parsedFieldStack.size() > 0) {
-      FieldWriter parent = peek();
+      FieldWriter parent = parsedFieldStack.peek().field;
       field.setBuildPrecedence(parent.getBuildPrecedence() + 1);
       parent.needs(field);
     }
 
     return field;
   }
-
+  
   private void requireUnique(String fieldName) throws UnableToCompleteException {
     if (fieldsMap.containsKey(fieldName)) {
       logger.die(DUPLICATE_FIELD_ERROR, fieldName);

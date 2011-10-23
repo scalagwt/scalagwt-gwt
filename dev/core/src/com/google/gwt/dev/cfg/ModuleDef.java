@@ -113,6 +113,8 @@ public class ModuleDef {
 
   private final Set<File> gwtXmlFiles = new HashSet<File>();
 
+  private final Set<String> inheritedModules = new HashSet<String>();
+
   /**
    * All resources found on the public path, specified by <public> directives in
    * modules (or the implicit ./public directory). Marked 'lazy' because it does not
@@ -447,6 +449,10 @@ public class ModuleDef {
     return lastModified() > moduleDefCreationTime;
   }
 
+  public boolean isInherited(String moduleName) {
+    return inheritedModules.contains(moduleName);
+  }
+
   public long lastModified() {
     long lastModified = 0;
     for (File xmlFile : gwtXmlFiles) {
@@ -490,6 +496,10 @@ public class ModuleDef {
 
   void addCompilationUnitArchiveURL(URL url) {
     archiveURLs.add(url);
+  }
+
+  void addInteritedModule(String moduleName) {
+    inheritedModules.add(moduleName);
   }
 
   /**

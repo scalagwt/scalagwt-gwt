@@ -25,7 +25,6 @@ import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.collect.HashSet;
 import com.google.gwt.dev.util.log.PrintWriterTreeLogger;
 import com.google.gwt.uibinder.attributeparsers.AttributeParsers;
-import com.google.gwt.uibinder.attributeparsers.BundleAttributeParsers;
 import com.google.gwt.uibinder.test.UiJavaResources;
 
 import junit.framework.TestCase;
@@ -107,7 +106,7 @@ public class UiBinderParserUiWithTest extends TestCase {
       code.append("import foo.Foo;\n");
       code.append("public class OwnerClass {");
       code.append("  public interface Renderer");
-      code.append("      extends UiRenderer<OwnerClass> {");
+      code.append("      extends UiRenderer {");
       code.append("    public void render(SafeHtmlBuilder sb, foo.Fooish fieldName);");
       code.append("  }");
       code.append("}");
@@ -125,7 +124,6 @@ public class UiBinderParserUiWithTest extends TestCase {
   }
 
   UiBinderParser parser;
-  private BundleAttributeParsers attributeParsers;
   private Document doc;
   private XMLElementProvider elemProvider;
 
@@ -143,7 +141,6 @@ public class UiBinderParserUiWithTest extends TestCase {
 
   private UiBinderWriter writer;
 
-  @SuppressWarnings("deprecation")
   @Override
   public void setUp() throws Exception {
     super.setUp();
@@ -156,7 +153,6 @@ public class UiBinderParserUiWithTest extends TestCase {
     CompilationState state = CompilationStateBuilder.buildFrom(createCompileLogger(), resources);
     types = state.getTypeOracle();
     logger = new MockMortalLogger();
-    attributeParsers = new BundleAttributeParsers(types, logger, null, "templatePath", null);
     fieldManager = new FieldManager(types, logger, true);
   }
 
@@ -271,8 +267,8 @@ public class UiBinderParserUiWithTest extends TestCase {
       UnableToCompleteException {
     DesignTimeUtils designTime = DesignTimeUtilsStub.EMPTY;
     elemProvider =
-        new XMLElementProviderImpl(new AttributeParsers(types, null, logger), attributeParsers,
-            types, logger, designTime);
+        new XMLElementProviderImpl(new AttributeParsers(types, null, logger), types,
+            logger, designTime);
     doc = docHelper.documentFor(domString, null);
     item = (Element) doc.getDocumentElement().getElementsByTagName("with").item(0);
     elm = elemProvider.get(item);
@@ -280,7 +276,7 @@ public class UiBinderParserUiWithTest extends TestCase {
     writer =
         new UiBinderWriter(aClass, "foo", "", types, logger, fieldManager, null,
             DesignTimeUtilsStub.EMPTY, new UiBinderContext(), true, true, "");
-    parser = new UiBinderParser(writer, null, fieldManager, types, null, "");
+    parser = new UiBinderParser(writer, null, fieldManager, types, null, "", new UiBinderContext());
     designTime.rememberPathForElements(doc);
     UiBinderParser.Resource.WITH.create(parser, elm);
   }

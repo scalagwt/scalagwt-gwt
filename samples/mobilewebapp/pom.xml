@@ -2,14 +2,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-  <!-- POM file generated with GWT webAppCreator -->
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.google.gwt.sample.mobilewebapp</groupId>
   <artifactId>MobileWebApp</artifactId>
   <packaging>war</packaging>
   <version>1.0-SNAPSHOT</version>
   <name>com.google.gwt.sample.mobilewebapp.MobileWebApp</name>
-  
+
   <properties>
     <!-- Convenience property to set the GWT version -->
     <gwtVersion>2.4.0</gwtVersion>
@@ -19,82 +18,62 @@
     <maven.compiler.target>1.6</maven.compiler.target>
 
     <!-- GAE properties -->
-    <gae.version>1.5.0.1</gae.version>
+    <gae.version>1.5.3</gae.version>
     <gae.home>${user.home}/.m2/repository/com/google/appengine/appengine-java-sdk/${gae.version}/appengine-java-sdk-${gae.version}</gae.home>
     <gae.application.version>1</gae.application.version>
 
-    <!-- TODO: DataNucleus trash -->
-    <datanucleus.version>1.1.5</datanucleus.version>
+    <!-- Don't let your Mac use a crazy non-standard encoding -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>
 
   <repositories>
-   <!--  <repository>
+    <repository>
       <id>objectify-appengine</id>
       <url>http://objectify-appengine.googlecode.com/svn/maven</url>
-    </repository> -->
-
-    <!-- TODO: DataNucleus trash -->
-    <repository>
-      <id>DataNucleus_2</id>
-      <url>http://www.datanucleus.org/downloads/maven2/</url>
-      <name>DataNucleus</name>
-    </repository>
-    <repository>
-      <id>JBoss Repo</id>
-      <url>https://repository.jboss.org/nexus/content/repositories/releases</url>
-      <name>JBoss Repo</name>
     </repository>
   </repositories>
 
-  <!-- TODO: DataNucleus trash -->
-  <pluginRepositories>
-    <pluginRepository>
-      <id>DataNucleus_2</id>
-      <url>http://www.datanucleus.org/downloads/maven2/</url>
-    </pluginRepository>
-  </pluginRepositories>
-
   <dependencies>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-    </dependency>
+    <!-- Google Web Toolkit (GWT) -->
 
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.8.1</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- Google Web Toolkit (GWT) itself -->
-
-    <dependency>
-      <groupId>com.google.gwt</groupId>
-      <artifactId>gwt-servlet</artifactId>
-      <version>${gwtVersion}</version>
-      <scope>runtime</scope>
-    </dependency>
     <dependency>
       <groupId>com.google.gwt</groupId>
       <artifactId>gwt-user</artifactId>
       <version>${gwtVersion}</version>
+      <!-- "provided" so that we don't deploy -->
       <scope>provided</scope>
     </dependency>
+
+    <!-- GWT projects do not usually need a dependency on gwt-dev, but MobileWebApp
+         contains a GWTC Linker (AppCacheLinker) which in turn depends on internals
+         of the GWT compiler. -->
     <dependency>
       <groupId>com.google.gwt</groupId>
       <artifactId>gwt-dev</artifactId>
       <version>${gwtVersion}</version>
+      <!-- "provided" so that we don't deploy -->
+      <scope>provided</scope>
     </dependency>
 
-    <!-- GWT RequestFactory will use JSR 303 javax.validation if you let it -->
+    <!-- RequestFactory server -->
+
     <dependency>
-      <groupId>javax.validation</groupId>
-      <artifactId>validation-api</artifactId>
-      <version>1.0.0.GA</version>
-      <classifier>sources</classifier>
+      <groupId>com.google.web.bindery</groupId>
+      <artifactId>requestfactory-server</artifactId>
+      <version>${gwtVersion}</version>
     </dependency>
+
+    <!-- Generate the decoder needed by RequestFactory Server -->
+    <!-- Doesn't yet work in eclipse. See maven-processor-plugin below.
+    <dependency>
+      <groupId>com.google.web.bindery</groupId>
+      <artifactId>requestfactory-apt</artifactId>
+      <version>${gwtVersion}</version>
+    </dependency>
+-->
+
+    <!-- RequestFactory will use JSR 303 javax.validation if you let it -->
     <dependency>
       <groupId>org.hibernate</groupId>
       <artifactId>hibernate-validator</artifactId>
@@ -111,17 +90,20 @@
       </exclusions>
     </dependency>
 
-    <!-- GWT RequestFactory requires org.json -->
-    <!-- TODO: can we declare the json and validation dependencies somewhere for the world to pick up,
-    rather than requiring everyone to know about them? -->
+    <!-- Required by Hibernate validator because slf4j-log4j is
+         optional in the hibernate-validator POM -->
     <dependency>
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20090211</version>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.6.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.6.1</version>
     </dependency>
 
-    <!-- Google App Engine (GAE) itself -->
-
+    <!-- Google App Engine (GAE) -->
     <dependency>
       <groupId>com.google.appengine</groupId>
       <artifactId>appengine-api-1.0-sdk</artifactId>
@@ -144,30 +126,14 @@
       <artifactId>appengine-api-labs</artifactId>
       <version>${gae.version}</version>
     </dependency>
-    <!-- uncomment for testing <dependency> <groupId>com.google.appengine</groupId> 
-      <artifactId>appengine-local-runtime</artifactId> <version>${gae.version}</version> 
-      <scope>system</scope> <systemPath>${gae.home}/lib/impl/appengine-local-runtime.jar</systemPath> 
-      </dependency> <dependency> <groupId>com.google.appengine</groupId> <artifactId>appengine-tools-api</artifactId> 
-      <version>${gae.version}</version> <scope>system</scope> <systemPath>${gae.home}/lib/appengine-tools-api.jar</systemPath> 
-      </dependency> -->
-
-    <!-- Who is this for? What is it? -->
-
-    <dependency>
-      <groupId>net.sf.jsr107cache</groupId>
-      <artifactId>jsr107cache</artifactId>
-      <version>1.1</version>
-      <type>jar</type>
-      <scope>compile</scope>
-    </dependency>
 
     <!-- Objectify for persistence. It uses the stock javax.persistence annotations -->
 
-    <!-- <dependency>
+    <dependency>
       <groupId>com.googlecode.objectify</groupId>
       <artifactId>objectify</artifactId>
       <version>3.0</version>
-    </dependency> -->
+    </dependency>
     <dependency>
       <groupId>javax.persistence</groupId>
       <artifactId>persistence-api</artifactId>
@@ -186,98 +152,86 @@
       <artifactId>gin</artifactId>
       <version>1.0</version>
     </dependency>
-
-    <!-- TODO: Who is using this? Is it just cruft from listwidget? -->
-
+    <!-- Use the JSR 330 injection interfaces-->
     <dependency>
-      <groupId>aopalliance</groupId>
-      <artifactId>aopalliance</artifactId>
-      <version>1.0</version>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
     </dependency>
 
-    <!-- TODO: Who is using this? Just GAE? Is anyone, really? -->
+    <!-- Unit tests -->
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
-      <version>1.6.1</version>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.8.1</version>
+      <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>1.6.1</version>
-    </dependency>
-    
-    <!-- The stuff needed by data nucleus until we can rip it out -->
-
-    <dependency>
-      <groupId>org.datanucleus</groupId>
-      <artifactId>datanucleus-core</artifactId>
-      <version>${datanucleus.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.transaction</groupId>
-          <artifactId>transaction-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.datanucleus</groupId>
-      <artifactId>datanucleus-jpa</artifactId>
-      <version>1.1.5</version>
-    </dependency>
-    <dependency>
-      <groupId>org.datanucleus</groupId>
-      <artifactId>datanucleus-rdbms</artifactId>
-      <version>${datanucleus.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.datanucleus</groupId>
-      <artifactId>datanucleus-enhancer</artifactId>
-      <version>1.1.4</version>
-    </dependency>
-    <dependency>
-      <groupId>javax.jdo</groupId>
-      <artifactId>jdo2-api</artifactId>
-      <version>2.3-eb</version>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.transaction</groupId>
-          <artifactId>transaction-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.google.appengine.orm</groupId>
-      <artifactId>datanucleus-appengine</artifactId>
-      <version>1.0.8</version>
-    </dependency>
-    <!-- must be in main dependencies as well as plugin dependencies below -->
-    <!-- <dependency>
-      <groupId>org.datanucleus</groupId>
-      <artifactId>datanucleus-core</artifactId>
-      <version>${datanucleus.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>javax.transaction</groupId>
-          <artifactId>transaction-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency> -->
-
   </dependencies>
-  
+
   <build>
-    <!-- Generate compiled stuff in the folder used for developing mode --> 
-    <outputDirectory>target/www/WEB-INF/classes</outputDirectory>
-    
+    <!-- Generate compiled stuff in the folder used for development mode -->
+    <outputDirectory>${project.build.directory}/${project.build.finalName}/WEB-INF/classes</outputDirectory>
+
     <plugins>
+      <!-- requestfactory-apt runs an annotation processor (APT) to
+           instrument its service interfaces so that
+           RequestFactoryServer can decode client requests. Normally
+           you would just have a dependency on requestfactory-apt
+           with <scope>provided</scope>, but that won't work in
+           eclipse due to m2e bug
+           https://bugs.eclipse.org/bugs/show_bug.cgi?id=335036 -->
+      <plugin>
+        <groupId>org.bsc.maven</groupId>
+        <artifactId>maven-processor-plugin</artifactId>
+        <version>2.0.5</version>
+        <executions>
+          <execution>
+            <id>process</id>
+            <goals>
+              <goal>process</goal>
+            </goals>
+            <phase>generate-sources</phase>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>com.google.web.bindery</groupId>
+            <artifactId>requestfactory-apt</artifactId>
+            <version>${gwtVersion}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+
+      <!-- Google Plugin for Eclipse (GPE) won't see the source
+           generated above by requestfactory-apt unless it is exposed
+           as an additional source dir-->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.7</version>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${project.build.directory}/generated-sources/apt</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <!-- GWT Maven Plugin-->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>gwt-maven-plugin</artifactId>
-	<version>2.2.0</version>
-	<dependencies>
+        <version>2.3.0-1</version>
+        <dependencies>
           <dependency>
             <groupId>com.google.gwt</groupId>
             <artifactId>gwt-user</artifactId>
@@ -293,8 +247,8 @@
             <artifactId>gwt-servlet</artifactId>
             <version>${gwtVersion}</version>
           </dependency>
-	</dependencies>
-        <!-- JS is only needed in the package phase, this speeds up testing --> 
+        </dependencies>
+        <!-- JS is only needed in the package phase, this speeds up testing -->
         <executions>
           <execution>
             <phase>prepare-package</phase>
@@ -303,23 +257,20 @@
             </goals>
           </execution>
         </executions>
-        <!-- Plugin configuration. There are many available options, 
-             see gwt-maven-plugin documentation at codehaus.org --> 
+
+        <!-- Plugin configuration. There are many available options,
+             see gwt-maven-plugin documentation at codehaus.org -->
         <configuration>
           <!-- URL that should be automatically opened in the GWT shell (gwt:run). -->
           <runTarget>MobileWebApp.html</runTarget>
-          <!-- Location of the develop-mode web application structure (gwt:run). -->
-          <hostedWebapp>target/www</hostedWebapp>
           <!-- Ask GWT to create the Story of Your Compile (SOYC) (gwt:compile) -->
           <compileReport>true</compileReport>
-	  <module>com.google.gwt.sample.mobilewebapp.MobileWebApp</module>
-
+          <module>com.google.gwt.sample.mobilewebapp.MobileWebApp</module>
           <appEngineVersion>${gae.version}</appEngineVersion>
           <appEngineHome>${gae.home}</appEngineHome>
           <logLevel>INFO</logLevel>
           <style>${gwt.style}</style>
 
-          <hostedWebapp>${project.build.directory}/${project.build.finalName}</hostedWebapp>
           <server>com.google.appengine.tools.development.gwt.AppEngineLauncher</server>
           <copyWebapp>true</copyWebapp>
         </configuration>
@@ -329,7 +280,7 @@
       <plugin>
         <groupId>net.kindleit</groupId>
         <artifactId>maven-gae-plugin</artifactId>
-        <version>0.8.0</version>
+        <version>0.8.1</version>
         <executions>
           <execution>
             <id />
@@ -344,7 +295,7 @@
       <!-- Add source folders to test classpath in order to run gwt-tests as normal junit-tests -->
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
-	<version>2.5</version>
+        <version>2.5</version>
         <configuration>
           <additionalClasspathElements>
             <additionalClasspathElement>${project.build.sourceDirectory}</additionalClasspathElement>
@@ -353,16 +304,16 @@
           <useManifestOnlyJar>false</useManifestOnlyJar>
           <forkMode>always</forkMode>
 
-          <!-- Folder for generated testing stuff --> 
+          <!-- Folder for generated testing stuff -->
           <systemProperties>
             <property>
               <name>gwt.args</name>
-              <value>-out target/www</value>
+              <value>-out ${project.build.directory}/${project.build.finalName}</value>
             </property>
           </systemProperties>
         </configuration>
       </plugin>
-      
+
       <!-- Copy static web files before executing gwt:run -->
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
@@ -374,7 +325,7 @@
               <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <outputDirectory>target/www</outputDirectory>
+              <outputDirectory>${project.build.directory}/${project.build.finalName}</outputDirectory>
               <resources>
                 <resource>
                   <directory>src/main/webapp</directory>
@@ -385,10 +336,11 @@
         </executions>
       </plugin>
 
+      <!-- Mark the project for Google Plugin for Eclipse (GPE) -->
       <plugin>
-	<artifactId>maven-eclipse-plugin</artifactId>
-	<version>2.7</version>  <!--  Note 2.8 does not work with AspectJ aspect path -->
-	<configuration>
+        <artifactId>maven-eclipse-plugin</artifactId>
+        <version>2.8</version>
+        <configuration>
           <downloadSources>true</downloadSources>
           <downloadJavadocs>false</downloadJavadocs>
           <wtpversion>2.0</wtpversion>
@@ -401,9 +353,52 @@
             <projectnature>com.google.gwt.eclipse.core.gwtNature</projectnature>
             <projectnature>com.google.appengine.eclipse.core.gaeNature</projectnature>
           </additionalProjectnatures>
-	</configuration>
+        </configuration>
       </plugin>
-
     </plugins>
+
+    <!-- Required by m2e for import into eclipse. No effect on command line builds  -->
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.eclipse.m2e</groupId>
+          <artifactId>lifecycle-mapping</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <lifecycleMappingMetadata>
+              <pluginExecutions>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>net.kindleit</groupId>
+                    <artifactId>maven-gae-plugin</artifactId>
+                    <versionRange>[0.7.3,)</versionRange>
+                    <goals>
+                      <goal>unpack</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <execute />
+                  </action>
+                </pluginExecution>
+
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.bsc.maven</groupId>
+                    <artifactId>maven-processor-plugin</artifactId>
+                    <versionRange>[2.0.5,)</versionRange>
+                    <goals>
+                      <goal>process</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <execute />
+                  </action>
+                </pluginExecution>
+              </pluginExecutions>
+            </lifecycleMappingMetadata>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
   </build>
 </project>

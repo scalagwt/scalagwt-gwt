@@ -15,7 +15,7 @@
  */
 package com.google.gwt.user.rebind.rpc;
 
-import com.google.gwt.core.ext.GeneratorContextExt;
+import com.google.gwt.core.ext.GeneratorContext;
 import com.google.gwt.core.ext.PropertyOracle;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.UnableToCompleteException;
@@ -307,6 +307,7 @@ public class SerializableTypeOracleBuilder {
    * Compares {@link JType}s according to their qualified source names.
    */
   static final Comparator<JType> JTYPE_COMPARATOR = new Comparator<JType>() {
+    @Override
     public int compare(JType t1, JType t2) {
       return t1.getQualifiedSourceName().compareTo(t2.getQualifiedSourceName());
     }
@@ -316,10 +317,12 @@ public class SerializableTypeOracleBuilder {
    * No type filtering by default..
    */
   private static final TypeFilter DEFAULT_TYPE_FILTER = new TypeFilter() {
+    @Override
     public String getName() {
       return "Default";
     }
 
+    @Override
     public boolean isAllowed(JClassType type) {
       return true;
     }
@@ -447,6 +450,15 @@ public class SerializableTypeOracleBuilder {
     }
 
     return (JRealClassType) type;
+  }
+
+  static boolean hasGwtTransientAnnotation(JField field) {
+    for (Annotation a : field.getAnnotations()) {
+      if (a.annotationType().getSimpleName().equals(GwtTransient.class.getSimpleName())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -604,7 +616,7 @@ public class SerializableTypeOracleBuilder {
       return false;
     }
 
-    if (field.isAnnotationPresent(GwtTransient.class)) {
+    if (hasGwtTransientAnnotation(field)) {
       return false;
     }
 
@@ -726,7 +738,7 @@ public class SerializableTypeOracleBuilder {
    */
   private final JGenericType collectionClass;
 
-  private final GeneratorContextExt context;
+  private final GeneratorContext context;
 
   private Set<String> enhancedClasses = null;
 
@@ -772,13 +784,13 @@ public class SerializableTypeOracleBuilder {
    * 
    * @param logger
    * @param propertyOracle
-   * @param typeOracle
+   * @param context
    * 
    * @throws UnableToCompleteException if we fail to find one of our special
    *           types
    */
   public SerializableTypeOracleBuilder(TreeLogger logger, PropertyOracle propertyOracle,
-      GeneratorContextExt context) throws UnableToCompleteException {
+      GeneratorContext context) throws UnableToCompleteException {
     this.context = context;
     this.typeOracle = context.getTypeOracle();
     typeConstrainer = new TypeConstrainer(typeOracle);
@@ -1329,7 +1341,7 @@ public class SerializableTypeOracleBuilder {
    * Check the argument to a parameterized type to see if it will make the type
    * it is applied to be serializable. As a side effect, populates
    * {@link #typeToTypeInfoComputed} in the same way as
-   * {@link #checkTypeInstantiable(TreeLogger, JType, boolean)}.
+   * {@link #computeTypeInstantiability}.
    * 
    * @param logger
    * @param baseType - The generic type the parameter is on

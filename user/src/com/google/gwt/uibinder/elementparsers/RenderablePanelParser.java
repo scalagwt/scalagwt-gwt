@@ -81,11 +81,11 @@ public class RenderablePanelParser implements ElementParser {
 
     // TODO(rdcastro): Add support for custom tags in RenderablePanel.
     if (customTag != null) {
-      writer.getLogger().die(
+      writer.getLogger().die(elem,
           "RenderablePanel does not support custom root elements yet.");
     }
 
-    writer.setFieldInitializerAsConstructor(fieldName, type, writer.declareTemplateCall(html,
+    writer.setFieldInitializerAsConstructor(fieldName, writer.declareTemplateCall(html,
         fieldName));
   }
 

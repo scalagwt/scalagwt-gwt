@@ -26,9 +26,7 @@ import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.collect.HashSet;
 import com.google.gwt.dev.util.log.PrintWriterTreeLogger;
 import com.google.gwt.uibinder.attributeparsers.AttributeParsers;
-import com.google.gwt.uibinder.attributeparsers.BundleAttributeParsers;
 import com.google.gwt.uibinder.rebind.messages.MessagesWriter;
-import com.google.gwt.uibinder.rebind.model.OwnerClass;
 import com.google.gwt.uibinder.test.UiJavaResources;
 
 import junit.framework.TestCase;
@@ -39,6 +37,7 @@ import org.xml.sax.SAXParseException;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Set;
 
 /**
@@ -122,7 +121,6 @@ public abstract class AbstractUiBinderWriterTest extends TestCase {
   protected PrintWriter printWriter;
   protected UiBinderWriter writer;
   protected UiBinderParser parser;
-  protected BundleAttributeParsers attributeParsers;
   protected XMLElementProvider elemProvider;
   protected XMLElement elm;
   protected FieldManager fieldManager;
@@ -142,7 +140,6 @@ public abstract class AbstractUiBinderWriterTest extends TestCase {
     super(name);
   }
 
-  @SuppressWarnings("deprecation")
   @Override
   public void setUp() throws Exception {
     super.setUp();
@@ -150,28 +147,25 @@ public abstract class AbstractUiBinderWriterTest extends TestCase {
     printWriter = new AbortablePrintWriter(new PrintWriter(new StringWriter()));
   }
 
-  protected void init(String domString, MockJavaResource rendererClass) throws SAXParseException,
-      UnableToCompleteException {
+  protected void init(String domString, MockJavaResource rendererClass,
+      MockJavaResource... otherClasses) throws SAXParseException, UnableToCompleteException {
     resources.add(RENDERABLE_PANEL);
     resources.add(CLIENT_BUNDLE);
     resources.add(DIV_ELEMENT);
     resources.add(SPAN_ELEMENT);
     resources.add(FOO);
     resources.add(rendererClass);
+    resources.addAll(Arrays.asList(otherClasses));
     CompilationState state = CompilationStateBuilder.buildFrom(createCompileLogger(), resources);
     types = state.getTypeOracle();
     logger = new MockMortalLogger();
-    JClassType ownerType = types.findType(RENDERER_OWNER_CLASS_NAME);
     UiBinderContext uiBinderCtx = new UiBinderContext();
-    attributeParsers =
-        new BundleAttributeParsers(types, logger, new OwnerClass(ownerType, logger, uiBinderCtx),
-            "templatePath", ownerType);
     fieldManager = new FieldManager(types, logger, true);
     String baseClass = RENDERER_BASE_CLASS_NAME;
     DesignTimeUtils designTime = DesignTimeUtilsStub.EMPTY;
     elemProvider =
         new XMLElementProviderImpl(new AttributeParsers(types, fieldManager, logger),
-            attributeParsers, types, logger, designTime);
+            types, logger, designTime);
     doc = docHelper.documentFor(domString, rendererClass.getPath());
     item = (Element) doc.getDocumentElement().getChildNodes().item(0);
     elm = elemProvider.get(item);
@@ -182,7 +176,7 @@ public abstract class AbstractUiBinderWriterTest extends TestCase {
     writer =
         new UiBinderWriter(aClass, "foo", "", types, logger, fieldManager, messages,
             DesignTimeUtilsStub.EMPTY, uiBinderCtx, true, true, BINDER_URI);
-    parser = new UiBinderParser(writer, messages, fieldManager, types, null, BINDER_URI);
+    parser = new UiBinderParser(writer, messages, fieldManager, types, null, BINDER_URI, new UiBinderContext());
     designTime.rememberPathForElements(doc);
   }
 }

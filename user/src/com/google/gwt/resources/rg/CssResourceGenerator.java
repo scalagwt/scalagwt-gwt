@@ -21,6 +21,7 @@ import com.google.gwt.core.ext.Generator;
 import com.google.gwt.core.ext.PropertyOracle;
 import com.google.gwt.core.ext.TreeLogger;
 import com.google.gwt.core.ext.UnableToCompleteException;
+import com.google.gwt.core.ext.linker.EmittedArtifact.Visibility;
 import com.google.gwt.core.ext.typeinfo.JClassType;
 import com.google.gwt.core.ext.typeinfo.JMethod;
 import com.google.gwt.core.ext.typeinfo.JPrimitiveType;
@@ -70,9 +71,14 @@ import com.google.gwt.resources.ext.ClientBundleRequirements;
 import com.google.gwt.resources.ext.ResourceContext;
 import com.google.gwt.resources.ext.ResourceGeneratorUtil;
 import com.google.gwt.resources.ext.SupportsGeneratorResultCaching;
+import com.google.gwt.thirdparty.guava.common.base.Joiner;
 import com.google.gwt.user.rebind.SourceWriter;
 import com.google.gwt.user.rebind.StringSourceWriter;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
@@ -436,10 +442,12 @@ public class CssResourceGenerator extends AbstractResourceGenerator
     JClassType cssResourceSubtype = method.getReturnType().isInterface();
     assert cssResourceSubtype != null;
     CssStylesheet stylesheet = stylesheetMap.get(method);
-       
+    
     // Optimize the stylesheet, recording the class selector obfuscations
     Map<JMethod, String> actualReplacements = optimize(logger, context, method);
-    
+
+    outputCssMapArtifact(logger, context, method, actualReplacements);
+
     outputAdditionalArtifacts(logger, context, method, actualReplacements,
         cssResourceSubtype, stylesheet);
     
@@ -576,10 +584,61 @@ public class CssResourceGenerator extends AbstractResourceGenerator
    * Output additional artifacts. Does nothing in this baseclass, but is a hook
    * for subclasses to do so.
    */
-  protected void outputAdditionalArtifacts(TreeLogger logger, 
-      ResourceContext context, JMethod method, 
+  protected void outputAdditionalArtifacts(TreeLogger logger,
+      ResourceContext context, JMethod method,
       Map<JMethod, String> actualReplacements, JClassType cssResourceSubtype,
       CssStylesheet stylesheet) throws UnableToCompleteException {
+  }
+
+  /**
+   * Builds a CSV file mapping obfuscated CSS class names to their qualified source name and
+   * outputs it as a private build artifact.
+   */
+  protected void outputCssMapArtifact(TreeLogger logger, ResourceContext context, JMethod method,
+      Map<JMethod, String> actualReplacements) {
+    // There may be several css resources that have the same css resource subtype (e.g. CssResource)
+    // so the qualified accessor method name is used for the unique output file name.
+    JClassType bundleType = method.getEnclosingType();
+
+    String qualifiedMethodName = bundleType.getQualifiedSourceName() + "." + method.getName();
+
+    String mappingFileName = "cssResource/" + qualifiedMethodName + ".cssmap";
+
+    OutputStream os = null;
+    try {
+      os = context.getGeneratorContext().tryCreateResource(logger, mappingFileName);
+    } catch (UnableToCompleteException e) {
+      logger.log(TreeLogger.WARN, "Could not create resource: " + mappingFileName);
+      return;
+    }
+
+    if (os == null) {
+      // If the returned OutputStream is null, that typically means the resource already exists.
+      // No need to write it out again.
+      return;
+    }
+
+    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os));
+    try {
+      for (Map.Entry<JMethod, String> replacement : actualReplacements.entrySet()) {
+        String qualifiedName = replacement.getKey().getEnclosingType().getQualifiedSourceName();
+        String baseName = replacement.getKey().getName();
+        writer.write(qualifiedName.replaceAll("[.$]", "-") + "-" + baseName);
+        writer.write(",");
+        writer.write(replacement.getValue());
+        writer.newLine();
+      }
+      writer.flush();
+      writer.close();
+    } catch (IOException e) {
+      logger.log(TreeLogger.WARN, "Error writing artifact: " + mappingFileName);
+    }
+
+    try {
+      context.getGeneratorContext().commitResource(logger, os).setVisibility(Visibility.Private);
+    } catch (UnableToCompleteException e) {
+      logger.log(TreeLogger.WARN, "Error trying to commit artifact: " + mappingFileName);
+    }
   }
 
   protected void writeGetName(JMethod method, SourceWriter sw) {
@@ -896,6 +955,11 @@ public class CssResourceGenerator extends AbstractResourceGenerator
         operableTypes);
   }
 
+  private boolean isReturnTypeString(JClassType classReturnType) {
+    return (classReturnType != null
+        && String.class.getName().equals(classReturnType.getQualifiedSourceName()));
+  }
+
   /**
    * Check for the presence of the NotStrict annotation on the method. This will
    * also perform some limited sanity-checking for the now-deprecated Strict
@@ -1079,21 +1143,21 @@ public class CssResourceGenerator extends AbstractResourceGenerator
       throw new UnableToCompleteException();
     }
 
-    // TODO: Allow returning an array of values
-    if (def.getValues().size() != 1) {
+    JClassType classReturnType = toImplement.getReturnType().isClass();
+
+    if (def.getValues().size() != 1 && !isReturnTypeString(classReturnType)) {
       logger.log(TreeLogger.ERROR, "@def rule " + name
-          + " must define exactly one value");
+          + " must define exactly one value or return type must be String");
       throw new UnableToCompleteException();
     }
 
-    NumberValue numberValue = def.getValues().get(0).isNumberValue();
-
     String returnExpr = "";
-    JClassType classReturnType = toImplement.getReturnType().isClass();
-    if (classReturnType != null
-        && "java.lang.String".equals(classReturnType.getQualifiedSourceName())) {
-      returnExpr = "\"" + Generator.escape(def.getValues().get(0).toString())
-          + "\"";
+    if (isReturnTypeString(classReturnType)) {
+      List<String> returnValues = new ArrayList<String>();
+      for (Value val : def.getValues()) {
+        returnValues.add(Generator.escape(val.toString()));
+      }
+      returnExpr = "\"" + Joiner.on(" ").join(returnValues) + "\"";
     } else {
       JPrimitiveType returnType = toImplement.getReturnType().isPrimitive();
       if (returnType == null) {
@@ -1102,6 +1166,7 @@ public class CssResourceGenerator extends AbstractResourceGenerator
             + "@def accessors");
         throw new UnableToCompleteException();
       }
+      NumberValue numberValue = def.getValues().get(0).isNumberValue();
       if (returnType == JPrimitiveType.INT || returnType == JPrimitiveType.LONG) {
         returnExpr = "" + Math.round(numberValue.getValue());
       } else if (returnType == JPrimitiveType.FLOAT) {

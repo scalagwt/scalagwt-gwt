@@ -17,13 +17,13 @@ package com.google.gwt.resources;
 
 import com.google.gwt.junit.tools.GWTTestSuite;
 import com.google.gwt.resources.client.CSSResourceTest;
+import com.google.gwt.resources.client.DataResourceDoNotEmbedTest;
+import com.google.gwt.resources.client.DataResourceMimeTypeTest;
 import com.google.gwt.resources.client.ExternalTextResourceJsonpTest;
 import com.google.gwt.resources.client.ExternalTextResourceTest;
 import com.google.gwt.resources.client.ImageResourceNoInliningTest;
 import com.google.gwt.resources.client.ImageResourceTest;
 import com.google.gwt.resources.client.NestedBundleTest;
-import com.google.gwt.resources.client.DataResourceDoNotEmbedTest;
-import com.google.gwt.resources.client.DataResourceMimeTypeTest;
 import com.google.gwt.resources.client.TextResourceTest;
 import com.google.gwt.resources.css.CssExternalTest;
 import com.google.gwt.resources.css.CssNodeClonerTest;

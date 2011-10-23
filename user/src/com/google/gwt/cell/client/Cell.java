@@ -22,11 +22,51 @@ import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import java.util.Set;
 
 /**
- * A light weight representation of a renderable object.
+ * A lightweight representation of a renderable object.
+ * 
+ * <p>
+ * Multiple cell widgets or Columns can share a single Cell instance, but there
+ * may be implications for certain stateful Cells. Generally, Cells are
+ * stateless flyweights that see the world as row values/keys. If a Column
+ * contains duplicate row values/keys, the Cell will not differentiate the value
+ * in one row versus another. Similarly, if you use a single Cell instance in
+ * multiple Columns, the Cells will not differentiate the values coming from one
+ * Column versus another.
+ * </p>
+ * 
+ * <p>
+ * However, some interactive Cells ({@link EditTextCell}, {@link CheckboxCell},
+ * {@link TextInputCell}, etc...) have a stateful "pending" state, which is a
+ * map of row values/keys to the end user entered pending value. For example, if
+ * an end user types a new value in a {@link TextInputCell}, the
+ * {@link TextInputCell} maps the "pending value" and associates it with the
+ * original row value/key. The next time the Cell Widget renders that row
+ * value/key, the Cell renders the pending value instead. This allows
+ * applications to refresh the Cell Widget without clearing out all of the end
+ * user's pending changes. In subclass of {@link AbstractEditableCell}, the
+ * pending state remains until either the original value is updated (a
+ * successful commit), or until
+ * {@link AbstractEditableCell#clearViewData(Object)} is called (a failed
+ * commit).
+ * </p>
+ * 
+ * <p>
+ * If you share an interactive Cell between two cell widgets (or Columns within
+ * the same CellTable), then when the end user updates the pending value in one
+ * widget, it will be reflected in the other widget <i>when the other widget is
+ * redrawn</i>. You should base your decision on whether or not to share Cell
+ * instances on this behavior.
+ * </p>
  * 
  * <p>
  * <h3>Example</h3>
  * {@example com.google.gwt.examples.cell.CellExample}
+ * </p>
+ * 
+ * <p>
+ * <span style="color:red;">Warning: The Cell interface may change in subtle but breaking ways as we
+ * continuously seek to improve performance. You should always subclass {@link AbstractCell} instead
+ * of implementing {@link Cell} directly.</span>
  * </p>
  * 
  * @param <C> the type that this Cell represents
@@ -115,8 +155,10 @@ public interface Cell<C> {
   boolean dependsOnSelection();
 
   /**
-   * Get the set of events that this cell consumes. The container that uses this
-   * cell should only pass these events to
+   * Get the set of events that this cell consumes (see
+   * {@link com.google.gwt.dom.client.BrowserEvents BrowserEvents} for useful
+   * constants). The container that uses this cell should only pass these events
+   * to
    * {@link #onBrowserEvent(Context, Element, Object, NativeEvent, ValueUpdater)}
    * when the event occurs.
    * 
@@ -126,6 +168,8 @@ public interface Cell<C> {
    * </p>
    * 
    * @return the consumed events, or null if no events are consumed
+   * 
+   * @see com.google.gwt.dom.client.BrowserEvents
    */
   Set<String> getConsumedEvents();
 

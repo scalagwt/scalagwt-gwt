@@ -242,87 +242,6 @@ public class RequestFactoryTest extends RequestFactoryTestBase {
         });
   }
 
-  public void testAppend() {
-    delayTestFinish(DELAY_TEST_FINISH);
-    SimpleFooRequest c1 = req.simpleFooRequest();
-    SimpleFooProxy foo1 = c1.create(SimpleFooProxy.class);
-    SimpleBarRequest c2 = c1.append(req.simpleBarRequest());
-    SimpleFooRequest c3 = c2.append(req.simpleFooRequest());
-
-    assertNotSame(c1, c3);
-    assertSame(foo1, c2.edit(foo1));
-    assertSame(foo1, c3.edit(foo1));
-
-    SimpleBarProxy foo2 = c2.create(SimpleBarProxy.class);
-    assertSame(foo2, c1.edit(foo2));
-    assertSame(foo2, c3.edit(foo2));
-
-    SimpleFooProxy foo3 = c3.create(SimpleFooProxy.class);
-    assertSame(foo3, c1.edit(foo3));
-    assertSame(foo3, c2.edit(foo3));
-
-    try {
-      // Throws exception because c3 has already accumulated some state
-      req.simpleValueContext().append(c3);
-      fail("Should have thrown IllegalStateException");
-    } catch (IllegalStateException expected) {
-    }
-
-    try {
-      // Throws exception because a different RequestFactory instance is used
-      c3.append(createFactory().simpleFooRequest());
-      fail("Should have thrown IllegalStateException");
-    } catch (IllegalStateException expected) {
-    }
-
-    // Queue up two invocations, and test that both Receivers are called
-    final boolean[] seen = {false, false};
-    c1.add(1, 2).to(new Receiver<Integer>() {
-      @Override
-      public void onSuccess(Integer response) {
-        seen[0] = true;
-        assertEquals(3, response.intValue());
-      }
-    });
-    c2.countSimpleBar().to(new Receiver<Long>() {
-      @Override
-      public void onSuccess(Long response) {
-        seen[1] = true;
-        assertEquals(2, response.longValue());
-      }
-    });
-
-    // It doesn't matter which context instance is fired
-    c2.fire(new Receiver<Void>() {
-      @Override
-      public void onSuccess(Void response) {
-        assertTrue(seen[0]);
-        assertTrue(seen[1]);
-        finishTestAndReset();
-      }
-    });
-
-    /*
-     * Since the common State has been locked, calling any other
-     * context-mutation methods should fail.
-     */
-    try {
-      c1.fire();
-      fail("Should have thrown exception");
-    } catch (IllegalStateException expected) {
-    }
-    try {
-      c3.fire();
-      fail("Should have thrown exception");
-    } catch (IllegalStateException expected) {
-    }
-    try {
-      c3.create(SimpleFooProxy.class);
-      fail("Should have thrown exception");
-    } catch (IllegalStateException expected) {
-    }
-  }
-
   /**
    * Test that we can commit child objects.
    */
@@ -781,6 +700,23 @@ public class RequestFactoryTest extends RequestFactoryTestBase {
           }
         });
   }
+ 
+  public void testForwardReferenceWildcardDecode() {
+    delayTestFinish(DELAY_TEST_FINISH);
+    simpleFooRequest().getTripletReference().with("selfOneToManyField.*.fooField")
+        .fire(new Receiver<SimpleFooProxy>() {
+          @Override
+          public void onSuccess(SimpleFooProxy response) {
+            response = checkSerialization(response);
+            assertNotNull(response.getSelfOneToManyField().get(0));
+            assertNotNull(response.getSelfOneToManyField().get(0).getSelfOneToManyField());
+            assertNotNull(response.getSelfOneToManyField().get(0).getSelfOneToManyField().get(0));
+            assertNotNull(response.getSelfOneToManyField().get(0).getSelfOneToManyField().get(0)
+                .getFooField());
+            finishTestAndReset();
+          }
+        });
+  }
 
   public void testGetEventBus() {
     assertEquals(eventBus, req.getEventBus());
@@ -1060,6 +996,19 @@ public class RequestFactoryTest extends RequestFactoryTestBase {
     delayTestFinish(DELAY_TEST_FINISH);
     simpleFooRequest().returnNullSimpleFoo().fire(new NullReceiver());
   }
+  
+  public void testNullEntityFieldResult() {
+    delayTestFinish(DELAY_TEST_FINISH);
+    simpleFooRequest().getSimpleFooWithNullRelationship().with("fooField.fooField.fooField").fire(
+        new Receiver<SimpleFooProxy>() {
+          @Override
+          public void onSuccess(SimpleFooProxy v) {
+            checkSerialization(v);
+            assertNull(v.getFooField());
+            finishTestAndReset();
+          }
+        });
+  }
 
   /**
    * Test that a null value can be sent in a request.
@@ -1162,6 +1111,63 @@ public class RequestFactoryTest extends RequestFactoryTestBase {
             finishTestAndReset();
           }
         });
+      }
+    });
+  }
+  
+  public void testNullValueInEntityListResponse() {
+    delayTestFinish(DELAY_TEST_FINISH);
+    final Request<SimpleFooProxy> fooReq =
+      req.simpleFooRequest().getNullInEntityList().with("selfOneToManyField");
+    fooReq.fire(new Receiver<SimpleFooProxy>() {
+      @Override
+      public void onSuccess(SimpleFooProxy v) {
+        List<SimpleFooProxy> manyFoos = v.getSelfOneToManyField();
+        assertEquals(3, manyFoos.size());
+        
+        assertNotNull(manyFoos.get(0));
+        assertNull(manyFoos.get(1));
+        assertNotNull(manyFoos.get(2));
+        
+        finishTestAndReset();
+      }
+    });
+  }
+
+  public void testNullValueInEntityListResponseWithWildcard() {
+    delayTestFinish(DELAY_TEST_FINISH);
+    final Request<SimpleFooProxy> fooReq =
+      req.simpleFooRequest().getNullInEntityList().with("selfOneToManyField.*.fooField");
+    fooReq.fire(new Receiver<SimpleFooProxy>() {
+      @Override
+      public void onSuccess(SimpleFooProxy foo0) {
+        List<SimpleFooProxy> manyFoos = foo0.getSelfOneToManyField();
+        assertEquals(3, manyFoos.size());
+        
+        assertSame(foo0, manyFoos.get(0).getSelfOneToManyField().get(0));
+        assertNull(manyFoos.get(1));
+        assertSame(foo0, manyFoos.get(2).getSelfOneToManyField().get(0));
+        assertSame(foo0, manyFoos.get(2).getFooField().getFooField());
+        
+        finishTestAndReset();
+      }
+    });
+  }
+
+  public void testNullValueInEntityListResponseWithLongResolvePaths() {
+    delayTestFinish(DELAY_TEST_FINISH);
+    final Request<SimpleFooProxy> fooReq =
+        req.simpleFooRequest().getNullInEntityList().with("selfOneToManyField.selfOneToManyField.selfOneToManyField");
+    fooReq.fire(new Receiver<SimpleFooProxy>() {
+      @Override
+      public void onSuccess(SimpleFooProxy v) {
+        assertEquals(3, v.getSelfOneToManyField().size());
+        
+        assertNotNull(v.getSelfOneToManyField().get(0));
+        assertNull(v.getSelfOneToManyField().get(1));
+        assertNotNull(v.getSelfOneToManyField().get(2));
+        
+        finishTestAndReset();
       }
     });
   }
@@ -2124,6 +2130,31 @@ public class RequestFactoryTest extends RequestFactoryTestBase {
             finishTestAndReset();
           }
         });
+  }
+  
+  public void testPropertyRefsOnWildcardChain() {
+    delayTestFinish(DELAY_TEST_FINISH);
+    final Request<SimpleFooProxy> fooReq =
+      req.simpleFooRequest().getLongChain().with("fooField.*.*.fooField");
+    fooReq.fire(new Receiver<SimpleFooProxy>() {
+      @Override
+      public void onSuccess(SimpleFooProxy foo0) {
+        assertNull(foo0.getSelfOneToManyField()); // didn't ask for it
+        
+        SimpleFooProxy foo1 = foo0.getFooField(); // "fooField
+        SimpleFooProxy foo2 = foo1.getFooField(); //          .*
+        SimpleFooProxy foo3 = foo2.getFooField(); //            .*
+        SimpleFooProxy foo4 = foo3.getFooField(); //              .fooField"
+        SimpleFooProxy foo5 = foo4.getFooField(); 
+        
+        assertNotNull(foo1);
+        assertNotNull(foo2);
+        assertNotNull(foo3);
+        assertNotNull(foo4);
+        assertNull(foo5);
+        finishTestAndReset();
+      }
+    });
   }
 
   public void testPropertyRefsOnSameObjectReturnedTwice() {
