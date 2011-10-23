@@ -63,6 +63,12 @@ import java.util.Set;
  * {@example com.google.gwt.examples.cell.CellExample}
  * </p>
  * 
+ * <p>
+ * <span style="color:red;">Warning: The Cell interface may change in subtle but breaking ways as we
+ * continuously seek to improve performance. You should always subclass {@link AbstractCell} instead
+ * of implementing {@link Cell} directly.</span>
+ * </p>
+ * 
  * @param <C> the type that this Cell represents
  */
 public interface Cell<C> {
@@ -149,8 +155,10 @@ public interface Cell<C> {
   boolean dependsOnSelection();
 
   /**
-   * Get the set of events that this cell consumes. The container that uses this
-   * cell should only pass these events to
+   * Get the set of events that this cell consumes (see
+   * {@link com.google.gwt.dom.client.BrowserEvents BrowserEvents} for useful
+   * constants). The container that uses this cell should only pass these events
+   * to
    * {@link #onBrowserEvent(Context, Element, Object, NativeEvent, ValueUpdater)}
    * when the event occurs.
    * 
@@ -160,6 +168,8 @@ public interface Cell<C> {
    * </p>
    * 
    * @return the consumed events, or null if no events are consumed
+   * 
+   * @see com.google.gwt.dom.client.BrowserEvents
    */
   Set<String> getConsumedEvents();
 

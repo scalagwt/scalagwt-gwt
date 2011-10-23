@@ -20,6 +20,7 @@ import com.google.gwt.cell.client.Cell.Context;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.AnchorElement;
+import com.google.gwt.dom.client.BrowserEvents;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.NativeEvent;
@@ -211,7 +212,8 @@ class CellTreeNodeView<T> extends UIObject {
         int childCount = nodeView.children.size();
         while (childCount > size) {
           childCount--;
-          nodeView.children.remove(childCount);
+          CellTreeNodeView<?> deleted = nodeView.children.remove(childCount);
+          deleted.cleanup(true);
         }
 
         // Reattach the open nodes.
@@ -912,8 +914,8 @@ class CellTreeNodeView<T> extends UIObject {
         if (nodeInfo != null) {
           Set<String> eventsToSink = new HashSet<String>();
           // Listen for focus and blur for keyboard navigation
-          eventsToSink.add("focus");
-          eventsToSink.add("blur");
+          eventsToSink.add(BrowserEvents.FOCUS);
+          eventsToSink.add(BrowserEvents.BLUR);
 
           Set<String> consumedEvents = nodeInfo.getCell().getConsumedEvents();
           if (consumedEvents != null) {

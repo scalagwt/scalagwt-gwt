@@ -180,6 +180,109 @@ public class CellTableTest extends AbstractCellTableTestBase<CellTable<String>> 
   }
 
   /**
+   * Using a null sort icon should not cause any errors if none of the columns
+   * are sortable.
+   */
+  public void testNullSortIcons() {
+    // Create a Resources instance that does not include sort images.
+    CellTable.Resources resources = new CellTable.Resources() {
+      private final CellTable.Resources defaultRes = GWT.create(CellTable.Resources.class);
+
+      @Override
+      public ImageResource cellTableFooterBackground() {
+        return defaultRes.cellTableFooterBackground();
+      }
+
+      @Override
+      public ImageResource cellTableHeaderBackground() {
+        return defaultRes.cellTableHeaderBackground();
+      }
+
+      @Override
+      public ImageResource cellTableLoading() {
+        return defaultRes.cellTableLoading();
+      }
+
+      @Override
+      public ImageResource cellTableSelectedBackground() {
+        return defaultRes.cellTableSelectedBackground();
+      }
+
+      @Override
+      public ImageResource cellTableSortAscending() {
+        return null;
+      }
+
+      @Override
+      public ImageResource cellTableSortDescending() {
+        return null;
+      }
+
+      @Override
+      public Style cellTableStyle() {
+        return defaultRes.cellTableStyle();
+      }
+    };
+
+    CellTable<String> table = new CellTable<String>(10, resources);
+    populateData(table);
+    table.getPresenter().flush();
+  }
+
+  /**
+   * CellTable should not throw any errors if all of the icons are null.
+   * 
+   * Sort icons are only used if a column is sorted. Background icons are not
+   * used in the default styles, and are optional. The sorting icon is specially
+   * handled.
+   */
+  public void testNullIcons() {
+    // Create a Resources instance that does not include sort images.
+    CellTable.Resources resources = new CellTable.Resources() {
+      private final CellTable.Resources defaultRes = GWT.create(CellTable.Resources.class);
+
+      @Override
+      public ImageResource cellTableFooterBackground() {
+        return null;
+      }
+
+      @Override
+      public ImageResource cellTableHeaderBackground() {
+        return null;
+      }
+
+      @Override
+      public ImageResource cellTableLoading() {
+        return null;
+      }
+
+      @Override
+      public ImageResource cellTableSelectedBackground() {
+        return null;
+      }
+
+      @Override
+      public ImageResource cellTableSortAscending() {
+        return null;
+      }
+
+      @Override
+      public ImageResource cellTableSortDescending() {
+        return null;
+      }
+
+      @Override
+      public Style cellTableStyle() {
+        return defaultRes.cellTableStyle();
+      }
+    };
+
+    CellTable<String> table = new CellTable<String>(10, resources);
+    populateData(table);
+    table.getPresenter().flush();
+  }
+
+  /**
    * Test that removing a column sets its width to zero.
    */
   public void testRemoveColumnWithWidth() {
@@ -248,6 +351,9 @@ public class CellTableTest extends AbstractCellTableTestBase<CellTable<String>> 
   protected int getHeaderCount(CellTable<String> table) {
     TableElement tableElem = table.getElement().cast();
     TableSectionElement thead = tableElem.getTHead();
+    if (thead.getRows().getLength() == 0) {
+      return 0;
+    }
     TableRowElement tr = thead.getRows().getItem(0);
     return tr.getCells().getLength();
   }

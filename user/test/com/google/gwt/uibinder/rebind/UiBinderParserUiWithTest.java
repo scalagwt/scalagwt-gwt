@@ -106,7 +106,7 @@ public class UiBinderParserUiWithTest extends TestCase {
       code.append("import foo.Foo;\n");
       code.append("public class OwnerClass {");
       code.append("  public interface Renderer");
-      code.append("      extends UiRenderer<OwnerClass> {");
+      code.append("      extends UiRenderer {");
       code.append("    public void render(SafeHtmlBuilder sb, foo.Fooish fieldName);");
       code.append("  }");
       code.append("}");
@@ -141,7 +141,6 @@ public class UiBinderParserUiWithTest extends TestCase {
 
   private UiBinderWriter writer;
 
-  @SuppressWarnings("deprecation")
   @Override
   public void setUp() throws Exception {
     super.setUp();
@@ -277,7 +276,7 @@ public class UiBinderParserUiWithTest extends TestCase {
     writer =
         new UiBinderWriter(aClass, "foo", "", types, logger, fieldManager, null,
             DesignTimeUtilsStub.EMPTY, new UiBinderContext(), true, true, "");
-    parser = new UiBinderParser(writer, null, fieldManager, types, null, "");
+    parser = new UiBinderParser(writer, null, fieldManager, types, null, "", new UiBinderContext());
     designTime.rememberPathForElements(doc);
     UiBinderParser.Resource.WITH.create(parser, elm);
   }
