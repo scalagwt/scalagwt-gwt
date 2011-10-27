@@ -378,6 +378,111 @@ public class JribbleAstBuilder {
     }
   }
 
+  private static boolean isNativeCode(Method method) {
+    if (!method.hasBody()) return false;
+    Statement body = method.getBody();
+    
+    if (body.getType() != Statement.StatementType.Block) return false;
+    Block block = body.getBlock();
+    
+    if (block.getStatementCount() != 1) return false;
+    Statement statement = block.getStatement(0);
+    
+    if (statement.getType() != Statement.StatementType.Expr) return false;
+    Expr expr = statement.getExpr();
+    
+    if (expr.getType() != Expr.ExprType.MethodCall) return false;
+    MethodCall call = expr.getMethodCall();
+    
+    // TODO check package in addition to function name
+    // TODO check that return type is Nothing
+    if (!"nativeCode".equals(call.getSignature().getName())) return false;
+    if (call.getArgumentCount() != 1) return false;
+    Expr argument = call.getArgument(0);
+    
+    if (argument.getType() != Expr.ExprType.Literal) return false;
+    Literal literal = argument.getLiteral();
+    
+    if (literal.getType() != Literal.LiteralType.String) return false;
+    return true;
+  }
+
+  private static String getNativeCode(Method method) {
+    return method.getBody()
+                 .getBlock()
+                 .getStatement(0)
+                 .getExpr()
+                 .getMethodCall()
+                 .getArgument(0)
+                 .getLiteral()
+                 .getStringValue();
+  }
+  
+  private static JsFunction parseJsniFunction(Method method,
+      String jsniCode, String enclosingType, SourceInfo info,
+      JsScope scope) {
+    // mostly copied from com.google.gwt.core.dev.javac.JsniCollector
+    
+    // Handle JSNI block
+
+    // Here we parse it as an anonymous function, but we will give it a
+    // name later when we generate the JavaScript during code generation.
+    //
+    StringBuilder functionSource = new StringBuilder("function (");
+    boolean first = true;
+    if (method.getParamDefCount() > 0) {
+      for (ParamDef arg : method.getParamDefList()) {
+        if (first) {
+          first = false;
+        } else {
+          functionSource.append(',');
+        }
+        functionSource.append(arg.getName());
+      }
+    }
+    functionSource.append(") ");
+    int functionHeaderLength = functionSource.length();
+    functionSource.append("{");
+    functionSource.append(jsniCode);
+    functionSource.append("}");
+    StringReader sr = new StringReader(functionSource.toString());
+
+    // Absolute start and end position of braces in original source.
+    //int absoluteJsStartPos = method.bodyStart + startPos;
+    //int absoluteJsEndPos = absoluteJsStartPos + jsniCode.length();
+
+    // Adjust the points the JS parser sees to account for the synth header.
+    //int jsStartPos = absoluteJsStartPos - functionHeaderLength;
+    //int jsEndPos = absoluteJsEndPos - functionHeaderLength;
+
+    // To compute the start line, count lines from point to point.
+    //int jsLine = info.getStartLine()
+    //    + countLines(indexes, info.getStartPos(), absoluteJsStartPos);
+
+    //SourceInfo jsInfo = baseInfo.makeChild(SourceOrigin.create(jsStartPos,
+    //    jsEndPos, jsLine, baseInfo.getFileName()));
+    try {
+      List<JsStatement> result = JsParser.parse(info, scope, sr);
+      JsExprStmt jsExprStmt = (JsExprStmt) result.get(0);
+      return (JsFunction) jsExprStmt.getExpression();
+    } catch (IOException e) {
+      throw new InternalCompilerException("Internal error parsing JSNI in '"
+          + enclosingType + '.' + method.toString() + '\'', e);
+    } catch (JsParserException e) {
+      // TODO fix error handling
+      //int problemCharPos = computeAbsoluteProblemPosition(indexes, e
+      //    .getSourceDetail());
+      //SourceInfo errorInfo = SourceOrigin.create(problemCharPos,
+      //    problemCharPos, e.getSourceDetail().getLine(), info.getFileName());
+      // Strip the file/line header because reportJsniError will add that.
+      //String msg = e.getMessage();
+      //int pos = msg.indexOf(": ");
+      //msg = msg.substring(pos + 2);
+      //reportJsniError(errorInfo, method, msg);
+      return null;
+    }
+  }
+  
   /** Given a top-level ClassDef/InterfaceDef, creates a full GWT AST. */
   private class AstWalker {
 
@@ -719,11 +824,29 @@ public class JribbleAstBuilder {
         params.put(x.getName(), x);
       }
       if (jrMethod.hasBody()) {
-        JMethodBody body = (JMethodBody) m.getBody();
-        LocalStack local = new LocalStack(enclosingClass, body, params);
-        local.pushBlock();
-        JBlock block = body.getBlock();
-        flatten(jrMethod.getBody(), block, local);
+        // detect jsni methods
+        if (isNativeCode(jrMethod)) {
+          String nativeCode = getNativeCode(jrMethod);
+          System.out.println("nativeCode:\n" + nativeCode);
+          SourceInfo sourceInfo = m.getBody().getSourceInfo();
+          JsniMethodBody body = new JsniMethodBody(sourceInfo);
+          
+          // TODO use class name here instead of file name
+          String enclosingType = sourceInfo.getFileName();
+          
+          // TODO do we need to use a different scope?
+          JsFunction func = parseJsniFunction(jrMethod,
+              nativeCode, enclosingType, sourceInfo,
+              JsRootScope.INSTANCE);
+          body.setFunc(func);
+          m.setBody(body);
+        } else {
+          JMethodBody body = (JMethodBody) m.getBody();
+          LocalStack local = new LocalStack(enclosingClass, body, params);
+          local.pushBlock();
+          JBlock block = body.getBlock();
+          flatten(jrMethod.getBody(), block, local);
+        }
       }
     }
 
