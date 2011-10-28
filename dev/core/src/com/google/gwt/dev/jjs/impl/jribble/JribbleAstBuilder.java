@@ -142,12 +142,15 @@ public class JribbleAstBuilder {
     public final List<JDeclaredType> types;
     public final Set<String> apiRefs;
     public final MethodArgNamesLookup methodArgNames;
+    public final List<JsniMethod> jsniMethods;
 
     public Result(List<JDeclaredType> types, Set<String> apiRefs,
-        MethodArgNamesLookup methodArgNames) {
+        MethodArgNamesLookup methodArgNames,
+        List<JsniMethod> jsniMethods) {
       this.types = types;
       this.apiRefs = apiRefs;
       this.methodArgNames = methodArgNames;
+      this.jsniMethods = jsniMethods;
     }
   }
 
@@ -157,12 +160,16 @@ public class JribbleAstBuilder {
   // reset on each invocation of process
   private ArrayList<JDeclaredType> newTypes;
   private MethodArgNamesLookup methodArgNames;
+  private ArrayList<JsniMethod> jsniMethods;
+  private String enclosingType;
   private JClassType javaLangClass = mapper.getClassType("java.lang.Class");
   private JClassType javaLangString = mapper.getClassType("java.lang.String");
 
   public Result process(DeclaredType declaredType) {
     newTypes = new ArrayList<JDeclaredType>();
     methodArgNames = new MethodArgNamesLookup();
+    jsniMethods = new ArrayList<JsniMethod>();
+    enclosingType = declaredType.getName().getPkg() + "." + declaredType.getName().getName();
     try {
       // Create the new source type
       createType(declaredType);
@@ -172,12 +179,14 @@ public class JribbleAstBuilder {
       createMembers(declaredType);
       // Fill in the methods
       buildTheCode(declaredType);
-      return new Result(newTypes, mapper.getTouchedTypes(), methodArgNames);
+      return new Result(newTypes, mapper.getTouchedTypes(), methodArgNames, jsniMethods);
     } finally {
       // Clean up.
       mapper.clearSource();
       methodArgNames = null;
       newTypes = null;
+      jsniMethods = null;
+      enclosingType = null;
     }
   }
 
@@ -378,7 +387,7 @@ public class JribbleAstBuilder {
     }
   }
 
-  private static boolean isNativeCode(Method method) {
+  private static boolean isNative(Method method) {
     if (!method.hasBody()) return false;
     Statement body = method.getBody();
     
@@ -418,7 +427,7 @@ public class JribbleAstBuilder {
                  .getStringValue();
   }
   
-  private static JsFunction parseJsniFunction(Method method,
+  private JsFunction parseJsniFunction(Method method,
       String jsniCode, String enclosingType, SourceInfo info,
       JsScope scope) {
     // mostly copied from com.google.gwt.core.dev.javac.JsniCollector
@@ -445,6 +454,7 @@ public class JribbleAstBuilder {
     functionSource.append("{");
     functionSource.append(jsniCode);
     functionSource.append("}");
+    //System.out.println(functionSource.toString());
     StringReader sr = new StringReader(functionSource.toString());
 
     // Absolute start and end position of braces in original source.
@@ -464,10 +474,17 @@ public class JribbleAstBuilder {
     try {
       List<JsStatement> result = JsParser.parse(info, scope, sr);
       JsExprStmt jsExprStmt = (JsExprStmt) result.get(0);
-      return (JsFunction) jsExprStmt.getExpression();
+      JsFunction jsFunc = (JsFunction) jsExprStmt.getExpression();
+      String jsniSignature = getJsniSignature(enclosingType, method);
+      //System.out.println(jsniSignature);
+      //for (JsParameter param : jsFunc.getParameters()) {
+      //  System.out.println(param.getName());
+      //}
+      jsniMethods.add(new JsniMethodImpl(jsniSignature, jsFunc, false));
+      return jsFunc;
     } catch (IOException e) {
       throw new InternalCompilerException("Internal error parsing JSNI in '"
-          + enclosingType + '.' + method.toString() + '\'', e);
+          + enclosingType + '.' + method.getName() + "'", e);
     } catch (JsParserException e) {
       // TODO fix error handling
       //int problemCharPos = computeAbsoluteProblemPosition(indexes, e
@@ -483,9 +500,211 @@ public class JribbleAstBuilder {
     }
   }
   
+  private static String getJsniSignature(String enclosingType, Method method) {
+    return '@' + enclosingType + "::"
+        + getMemberSignature(method);
+  }
+  
+  private static String getMemberSignature(Method method) {
+    String name = method.getName();
+    StringBuilder sb = new StringBuilder();
+    sb.append(name);
+    sb.append("(");
+    if (method.getParamDefCount() > 0) {
+      for (ParamDef arg : method.getParamDefList()) {
+        sb.append(getSignature(arg.getTpe()));
+      }
+    }
+    sb.append(")");
+    return sb.toString();
+  }
+
+  private static String getSignature(Type tpe) {
+    String result = "";
+    switch (tpe.getType()) {
+    case Primitive:
+      switch (tpe.getPrimitiveType()) {
+      case Boolean: result = "Z"; break;
+      case Byte: result = "B"; break;
+      case Char: result = "C"; break;
+      case Double: result = "D"; break;
+      case Float: result = "F"; break;
+      case Int: result = "I"; break;
+      case Long: result = "J"; break;
+      case Short: result = "S"; break;
+      }
+      break;
+    case Array:
+      result = "[" + getSignature(tpe.getArrayElementType());
+      break;
+    case Named:
+      StringBuilder sb = new StringBuilder();
+      sb.append("L");
+      sb.append(tpe.getNamedType().getPkg().replace(".", "/"));
+      sb.append("/");
+      sb.append(tpe.getNamedType().getName().replace(".", "/"));
+      sb.append(";");
+      result = sb.toString();
+      break;
+    }
+    return result;
+  }
+  
+  private static final class JsniMethodImpl extends JsniMethod implements Serializable {
+    private final JsFunction func;
+    private boolean isScriptOnly;
+    private final String name;
+    
+    public JsniMethodImpl(String name, JsFunction func, boolean isScriptOnly) {
+      this.name = name;
+      this.func = func;
+      this.isScriptOnly = isScriptOnly;
+    }
+    
+    @Override
+    public JsFunction function() {
+      return func;
+    }
+    
+    @Override
+    public boolean isScriptOnly() {
+      return isScriptOnly;
+    }
+    
+    @Override
+    public int line() {
+      return func.getSourceInfo().getStartLine();
+    }
+    
+    @Override
+    public String location() {
+      return func.getSourceInfo().getFileName();
+    }
+    
+    @Override
+    public String name() {
+      return name;
+    }
+    
+    @Override
+    public String[] paramNames() {
+      List<JsParameter> params = func.getParameters();
+      String[] result = new String[params.size()];
+      for (int i = 0; i < result.length; ++i) {
+        result[i] = params.get(i).getName().getIdent();
+      }
+      return result;
+    }
+    
+    @Override
+    public String toString() {
+      return func.toString();
+    }
+  }
+  
   /** Given a top-level ClassDef/InterfaceDef, creates a full GWT AST. */
   private class AstWalker {
 
+    /**
+     * Resolves local references to function parameters, and JSNI references.
+     */
+//    private class JsniResolver extends JsModVisitor {
+//      private final GenerateJavaScriptLiterals generator = new GenerateJavaScriptLiterals();
+//      private final JsniMethodBody nativeMethodBody;
+//
+//      private JsniResolver(JsniMethodBody nativeMethodBody) {
+//        this.nativeMethodBody = nativeMethodBody;
+//      }
+//
+//      @Override
+//      public void endVisit(JsNameRef x, JsContext ctx) {
+//        String ident = x.getIdent();
+//        if (ident.charAt(0) == '@') {
+//          Binding binding = jsniRefs.get(ident);
+//          SourceInfo info = x.getSourceInfo();
+//          if (binding == null) {
+//            assert ident.startsWith("@null::");
+//            if ("@null::nullMethod()".equals(ident)) {
+//              processMethod(x, info, JMethod.NULL_METHOD);
+//            } else {
+//              assert "@null::nullField".equals(ident);
+//              processField(x, info, JField.NULL_FIELD, ctx);
+//            }
+//          } else if (binding instanceof TypeBinding) {
+//            JType type = typeMap.get((TypeBinding) binding);
+//            processClassLiteral(x, info, type, ctx);
+//          } else if (binding instanceof FieldBinding) {
+//            FieldBinding fieldBinding = (FieldBinding) binding;
+//            /*
+//             * We must replace any compile-time constants with the constant
+//             * value of the field.
+//             */
+//            if (isCompileTimeConstant(fieldBinding)) {
+//              assert !ctx.isLvalue();
+//              JExpression constant = getConstant(info, fieldBinding.constant());
+//              generator.accept(constant);
+//              JsExpression result = generator.pop();
+//              assert (result != null);
+//              ctx.replaceMe(result);
+//            } else {
+//              // Normal: create a jsniRef.
+//              JField field = typeMap.get(fieldBinding);
+//              processField(x, info, field, ctx);
+//            }
+//          } else {
+//            JMethod method = typeMap.get((MethodBinding) binding);
+//            processMethod(x, info, method);
+//          }
+//        }
+//      }
+//
+//      private void processClassLiteral(JsNameRef nameRef, SourceInfo info, JType type, JsContext ctx) {
+//        assert !ctx.isLvalue();
+//        JsniClassLiteral classLiteral = new JsniClassLiteral(info, nameRef.getIdent(), type);
+//        nativeMethodBody.addClassRef(classLiteral);
+//      }
+//
+//      private void processField(JsNameRef nameRef, SourceInfo info, JField field, JsContext ctx) {
+//        JsniFieldRef fieldRef =
+//            new JsniFieldRef(info, nameRef.getIdent(), field, curClass.type, ctx.isLvalue());
+//        nativeMethodBody.addJsniRef(fieldRef);
+//      }
+//
+//      private void processMethod(JsNameRef nameRef, SourceInfo info, JMethod method) {
+//        JsniMethodRef methodRef =
+//            new JsniMethodRef(info, nameRef.getIdent(), method, javaLangObject);
+//        nativeMethodBody.addJsniRef(methodRef);
+//      }
+//    }
+
+    /**
+     * Resolves the scope of JS identifiers solely within the scope of a method.
+     */
+    private class JsParameterResolver extends JsAbstractSymbolResolver {
+      private final JsFunction jsFunction;
+
+      public JsParameterResolver(JsFunction jsFunction) {
+        this.jsFunction = jsFunction;
+      }
+
+      @Override
+      public void resolve(JsNameRef x) {
+        // Only resolve unqualified names
+        if (x.getQualifier() == null) {
+          JsName name = getScope().findExistingName(x.getIdent());
+
+          // Ensure that we're resolving a name from the function's parameters
+          JsNode node = name == null ? null : name.getStaticRef();
+          if (node instanceof JsParameter) {
+            JsParameter param = (JsParameter) node;
+            if (jsFunction.getParameters().contains(param)) {
+              x.resolve(name);
+            }
+          }
+        }
+      }
+    }
+    
     private JExpression assignment(Assignment assignment, LocalStack local) {
       JExpression lhs = expression(assignment.getLhs(), local);
       JExpression rhs = expression(assignment.getRhs(), local);
@@ -824,22 +1043,8 @@ public class JribbleAstBuilder {
         params.put(x.getName(), x);
       }
       if (jrMethod.hasBody()) {
-        // detect jsni methods
-        if (isNativeCode(jrMethod)) {
-          String nativeCode = getNativeCode(jrMethod);
-          System.out.println("nativeCode:\n" + nativeCode);
-          SourceInfo sourceInfo = m.getBody().getSourceInfo();
-          JsniMethodBody body = new JsniMethodBody(sourceInfo);
-          
-          // TODO use class name here instead of file name
-          String enclosingType = sourceInfo.getFileName();
-          
-          // TODO do we need to use a different scope?
-          JsFunction func = parseJsniFunction(jrMethod,
-              nativeCode, enclosingType, sourceInfo,
-              JsRootScope.INSTANCE);
-          body.setFunc(func);
-          m.setBody(body);
+        if (isNative(jrMethod)) {
+          processNativeMethod(jrMethod, m);
         } else {
           JMethodBody body = (JMethodBody) m.getBody();
           LocalStack local = new LocalStack(enclosingClass, body, params);
@@ -849,7 +1054,30 @@ public class JribbleAstBuilder {
         }
       }
     }
-
+    
+    private void processNativeMethod(Method jrMethod, JMethod m) {
+      String nativeCode = getNativeCode(jrMethod);
+      SourceInfo sourceInfo = m.getBody().getSourceInfo();
+      JsniMethodBody body = new JsniMethodBody(sourceInfo);
+      
+      // TODO use class name here instead of file name
+      //String enclosingType = sourceInfo.getFileName();
+      
+      // TODO do we need to use a different scope?
+      JsFunction func = parseJsniFunction(jrMethod,
+          nativeCode, enclosingType, sourceInfo,
+          JsRootScope.INSTANCE);
+      func.setFromJava(true);
+      body.setFunc(func);
+      m.setBody(body);
+      
+      // Resolve locals, params, and JSNI.
+      JsParameterResolver localResolver = new JsParameterResolver(func);
+      localResolver.accept(func);
+      //JsniResolver jsniResolver = new JsniResolver(body);
+      //jsniResolver.accept(func);
+    }
+    
     private JStatement methodStatement(Statement s, LocalStack local) {
       switch (s.getType()) {
         case Block:
