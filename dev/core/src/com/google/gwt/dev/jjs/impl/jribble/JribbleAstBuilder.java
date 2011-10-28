@@ -403,12 +403,14 @@ public class JribbleAstBuilder {
     if (expr.getType() != Expr.ExprType.MethodCall) return false;
     MethodCall call = expr.getMethodCall();
     
-    // TODO check package in addition to function name
-    // TODO check that return type is Nothing
-    if (!"nativeCode".equals(call.getSignature().getName())) return false;
+    MethodSignature sig = call.getSignature();
+    if (!"scala.util".equals(sig.getOwner().getPkg()) ||
+        !"package$".equals(sig.getOwner().getName()) ||
+        !"nativeCode".equals(sig.getName())) return false;
     if (call.getArgumentCount() != 1) return false;
     Expr argument = call.getArgument(0);
     
+    // TODO fail if the argument to nativeCode is not a literal
     if (argument.getType() != Expr.ExprType.Literal) return false;
     Literal literal = argument.getLiteral();
     
