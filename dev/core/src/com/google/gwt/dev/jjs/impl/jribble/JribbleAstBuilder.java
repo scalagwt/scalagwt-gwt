@@ -14,6 +14,9 @@
 
 package com.google.gwt.dev.jjs.impl.jribble;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
+import com.google.gwt.dev.javac.JsniMethod;
 import com.google.gwt.dev.javac.MethodArgNamesLookup;
 import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.jjs.SourceInfo;
@@ -86,6 +90,7 @@ import com.google.gwt.dev.jjs.ast.JType;
 import com.google.gwt.dev.jjs.ast.JUnaryOperator;
 import com.google.gwt.dev.jjs.ast.JVariableRef;
 import com.google.gwt.dev.jjs.ast.JWhileStatement;
+import com.google.gwt.dev.jjs.ast.js.JsniMethodBody;
 import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.ArrayLength;
 import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.ArrayRef;
 import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.Assignment;
@@ -127,6 +132,18 @@ import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.Unary;
 import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.VarDef;
 import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.VarRef;
 import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.While;
+import com.google.gwt.dev.js.JsAbstractSymbolResolver;
+import com.google.gwt.dev.js.JsParser;
+import com.google.gwt.dev.js.JsParserException;
+import com.google.gwt.dev.js.ast.JsExprStmt;
+import com.google.gwt.dev.js.ast.JsFunction;
+import com.google.gwt.dev.js.ast.JsName;
+import com.google.gwt.dev.js.ast.JsNameRef;
+import com.google.gwt.dev.js.ast.JsNode;
+import com.google.gwt.dev.js.ast.JsParameter;
+import com.google.gwt.dev.js.ast.JsRootScope;
+import com.google.gwt.dev.js.ast.JsScope;
+import com.google.gwt.dev.js.ast.JsStatement;
 import com.google.gwt.dev.util.Name.BinaryName;
 import com.google.gwt.dev.util.StringInterner;
 
@@ -440,8 +457,8 @@ public class JribbleAstBuilder {
     // name later when we generate the JavaScript during code generation.
     //
     StringBuilder functionSource = new StringBuilder("function (");
-    boolean first = true;
     if (method.getParamDefCount() > 0) {
+      boolean first = true;
       for (ParamDef arg : method.getParamDefList()) {
         if (first) {
           first = false;
@@ -498,6 +515,7 @@ public class JribbleAstBuilder {
       //int pos = msg.indexOf(": ");
       //msg = msg.substring(pos + 2);
       //reportJsniError(errorInfo, method, msg);
+      //System.out.println("JsParserException: " + e);
       return null;
     }
   }

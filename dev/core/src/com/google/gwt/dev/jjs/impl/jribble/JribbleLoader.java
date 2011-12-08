@@ -75,7 +75,7 @@ public class JribbleLoader {
       builder.setDependencies(Dependencies.buildFromApiRefs(myPackage,
           new ArrayList<String>(result.apiRefs)));
       builder.setMethodArgs(result.methodArgNames);
-      builder.setJsniMethods(Collections.<JsniMethod>emptyList());
+      builder.setJsniMethods(result.jsniMethods);
 
       buildQueue.add(builder);
     }
