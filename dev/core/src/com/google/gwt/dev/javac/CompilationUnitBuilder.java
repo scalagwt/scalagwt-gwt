@@ -15,23 +15,81 @@
  */
 package com.google.gwt.dev.javac;
 
+import com.google.gwt.dev.jjs.InternalCompilerException;
+import com.google.gwt.dev.jjs.ast.JDeclaredType;
+import com.google.gwt.dev.resource.Resource;
+import com.google.gwt.dev.util.Util;
+
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 
-import org.eclipse.jdt.core.compiler.CategorizedProblem;
-
-import com.google.gwt.dev.jjs.InternalCompilerException;
-import com.google.gwt.dev.jjs.ast.JDeclaredType;
-import com.google.gwt.dev.resource.Resource;
-import com.google.gwt.dev.util.Util;
-
 /**
  * Builds a {@link CompilationUnit}.
  */
 public abstract class CompilationUnitBuilder {
+
+  static final class GeneratedCompilationUnit extends CompilationUnitImpl {
+    private final GeneratedUnit generatedUnit;
+
+    public GeneratedCompilationUnit(GeneratedUnit generatedUnit,
+        List<CompiledClass> compiledClasses, List<JDeclaredType> types, Dependencies dependencies,
+        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
+        CategorizedProblem[] problems) {
+      super(compiledClasses, types, dependencies, jsniMethods, methodArgs, problems);
+      this.generatedUnit = generatedUnit;
+    }
+
+    @Override
+    public CachedCompilationUnit asCachedCompilationUnit() {
+      return new CachedCompilationUnit(this, astToken);
+    }
+
+    @Override
+    public long getLastModified() {
+      return generatedUnit.creationTime();
+    }
+
+    @Override
+    public String getResourceLocation() {
+      return getLocationFor(generatedUnit);
+    }
+
+    @Override
+    public String getResourcePath() {
+      return Shared.toPath(generatedUnit.getTypeName());
+    }
+
+    @Override
+    public String getTypeName() {
+      return generatedUnit.getTypeName();
+    }
+
+    @Deprecated
+    @Override
+    public boolean isGenerated() {
+      return true;
+    }
+
+    @Deprecated
+    @Override
+    public boolean isSuperSource() {
+      return false;
+    }
+
+    @Override
+    ContentId getContentId() {
+      return new ContentId(getTypeName(), generatedUnit.getStrongHash());
+    }
+
+    String getSource() {
+      return generatedUnit.getSource();
+    }
+  }
 
   static class GeneratedCompilationUnitBuilder extends CompilationUnitBuilder {
     private final GeneratedUnit generatedUnit;
@@ -46,13 +104,13 @@ public abstract class CompilationUnitBuilder {
     }
 
     @Override
-    public String getLocation() {
-      return getLocationFor(generatedUnit);
+    public long getLastModified() {
+      return generatedUnit.creationTime();
     }
     
     @Override
-    public long getLastModified() {
-      return generatedUnit.creationTime();
+    public String getLocation() {
+      return getLocationFor(generatedUnit);
     }
 
     @Override
@@ -61,12 +119,12 @@ public abstract class CompilationUnitBuilder {
     }
 
     @Override
-    public boolean isJribble() {
+    public boolean isBinaryJribble() {
       return false;
     }
     
     @Override
-    public boolean isBinaryJribble() {
+    public boolean isJribble() {
       return false;
     }
 
@@ -140,14 +198,14 @@ public abstract class CompilationUnitBuilder {
     }
     
     @Override
-    public boolean isJribble() {
-      String path = resource.getPath();
-      return path.endsWith(".jribble") || path.endsWith(".jribbletxt");
+    public boolean isBinaryJribble() {
+      return resource.getPath().endsWith(".jribble");
     }
     
     @Override
-    public boolean isBinaryJribble() {
-      return resource.getPath().endsWith(".jribble");
+    public boolean isJribble() {
+      String path = resource.getPath();
+      return path.endsWith(".jribble") || path.endsWith(".jribbletxt");
     }
     
     public InputStream readSourceBinary() throws IOException {
@@ -180,64 +238,6 @@ public abstract class CompilationUnitBuilder {
         CategorizedProblem[] problems) {
       return new SourceFileCompilationUnit(getResource(), getContentId(), compiledClasses, types,
           dependencies, jsniMethods, methodArgs, problems, getLastModified());
-    }
-  }
-
-  static final class GeneratedCompilationUnit extends CompilationUnitImpl {
-    private final GeneratedUnit generatedUnit;
-
-    public GeneratedCompilationUnit(GeneratedUnit generatedUnit,
-        List<CompiledClass> compiledClasses, List<JDeclaredType> types, Dependencies dependencies,
-        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
-        CategorizedProblem[] problems) {
-      super(compiledClasses, types, dependencies, jsniMethods, methodArgs, problems);
-      this.generatedUnit = generatedUnit;
-    }
-
-    @Override
-    public CachedCompilationUnit asCachedCompilationUnit() {
-      return new CachedCompilationUnit(this, astToken);
-    }
-
-    @Override
-    public long getLastModified() {
-      return generatedUnit.creationTime();
-    }
-
-    @Override
-    public String getResourceLocation() {
-      return getLocationFor(generatedUnit);
-    }
-
-    @Override
-    public String getResourcePath() {
-      return Shared.toPath(generatedUnit.getTypeName());
-    }
-
-    @Override
-    public String getTypeName() {
-      return generatedUnit.getTypeName();
-    }
-
-    @Deprecated
-    @Override
-    public boolean isGenerated() {
-      return true;
-    }
-
-    @Deprecated
-    @Override
-    public boolean isSuperSource() {
-      return false;
-    }
-
-    @Override
-    ContentId getContentId() {
-      return new ContentId(getTypeName(), generatedUnit.getStrongHash());
-    }
-
-    String getSource() {
-      return generatedUnit.getSource();
     }
   }
 
@@ -291,9 +291,9 @@ public abstract class CompilationUnitBuilder {
 
   public abstract ContentId getContentId();
 
-  public abstract String getLocation();
-  
   public abstract long getLastModified();
+  
+  public abstract String getLocation();
 
   public String getSource() {
     if (source == null) {
@@ -304,9 +304,9 @@ public abstract class CompilationUnitBuilder {
 
   public abstract String getTypeName();
 
-  public abstract boolean isJribble();
-  
   public abstract boolean isBinaryJribble();
+  
+  public abstract boolean isJribble();
   
   /**
    * Read in the source of this unit as binary. Only available if
