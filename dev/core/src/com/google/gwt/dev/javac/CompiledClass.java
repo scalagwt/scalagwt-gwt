@@ -16,7 +16,6 @@
 package com.google.gwt.dev.javac;
 
 import com.google.gwt.dev.javac.TypeOracleMediator.TypeData;
-import com.google.gwt.dev.jjs.InternalCompilerException;
 import com.google.gwt.dev.util.DiskCache;
 import com.google.gwt.dev.util.DiskCacheToken;
 import com.google.gwt.dev.util.Name.InternalName;
@@ -45,7 +44,6 @@ public final class CompiledClass implements Serializable {
     if (in == null) {
       return null;
     }
-    CompiledClass[] orig = new CompiledClass[in.size()];
     List<CompiledClass> copy = new ArrayList<CompiledClass>();
 
     Map<CompiledClass, CompiledClass> enclosingClassMap = new HashMap<CompiledClass, CompiledClass>();
@@ -53,20 +51,6 @@ public final class CompiledClass implements Serializable {
       CompiledClass copyCc = new CompiledClass(cc, newUnit);
       copy.add(copyCc);
       enclosingClassMap.put(cc, copyCc);
-    }
-
-    // Update the enclosing class references.   With enough effort, we could determine the
-    // hierarchical relationship of compiled classes and initialize the copies with the
-    // copied enclosing class, but this is less effort.
-    for (CompiledClass copyCc : copy) {
-      if (copyCc.enclosingClass == null) {
-        continue;
-      }
-      CompiledClass newRef = enclosingClassMap.get(copyCc.enclosingClass);
-      if (null == newRef) {
-        throw new InternalCompilerException("Enclosing type not found for " + copyCc.sourceName);
-      }
-      copyCc.enclosingClass = newRef;
     }
 
     return Collections.unmodifiableCollection(copy);
@@ -77,7 +61,6 @@ public final class CompiledClass implements Serializable {
    * placed in the cache when the object is deserialized.
    */
   private final DiskCacheToken classBytesToken;
-  private CompiledClass enclosingClass;
   private final String internalName;
   private final boolean isLocal;
   private final long lastModified;
@@ -100,7 +83,8 @@ public final class CompiledClass implements Serializable {
    *          {@code java/util/Map$Entry}. See
    *          {@link "http://java.sun.com/docs/books/jvms/second_edition/html/ClassFile.doc.html#14757"}
    */
-  public CompiledClass(byte[] classBytes, boolean isLocal, String internalName, long lastModified) {
+  public CompiledClass(byte[] classBytes, boolean isLocal, String internalName,
+      long lastModified) {
     this.internalName = StringInterner.get().intern(internalName);
     this.sourceName = StringInterner.get().intern(InternalName.toSourceName(internalName));
     this.classBytesToken = new DiskCacheToken(diskCache.writeByteArray(classBytes));
@@ -112,7 +96,6 @@ public final class CompiledClass implements Serializable {
    * Used for cloning all compiled classes in one compilation unit.
    */
   private CompiledClass(CompiledClass orig, CompilationUnit newUnit) {
-    this.enclosingClass = orig.enclosingClass;
     this.internalName = orig.internalName;
     this.sourceName = orig.sourceName;
     this.classBytesToken = orig.classBytesToken;
@@ -128,10 +111,6 @@ public final class CompiledClass implements Serializable {
    */
   public byte[] getBytes() {
     return classBytesToken.readByteArray();
-  }
-
-  public CompiledClass getEnclosingClass() {
-    return enclosingClass;
   }
 
   /**
@@ -186,8 +165,11 @@ public final class CompiledClass implements Serializable {
     return isLocal;
   }
   
-  public void setEnclosingClass(CompiledClass enclosingClass) {
-    this.enclosingClass = enclosingClass;
+  /**
+   * Returns whether this is a top-level class or not.
+   */
+  public boolean isTopLevel() {
+    return getTypeData().getOuterClass() == null;
   }
 
   @Override

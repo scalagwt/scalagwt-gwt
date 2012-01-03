@@ -267,7 +267,6 @@ public class JdtCompiler {
       String internalName = CharOperation.charToString(classFile.fileName());
       CompiledClass result = new CompiledClass(classFile.getBytes(),
           isLocalType(classFile), internalName, lastModified);
-      result.setEnclosingClass(enclosingClass);
       results.put(classFile, result);
     }
   }

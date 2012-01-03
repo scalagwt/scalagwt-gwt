@@ -116,17 +116,5 @@ public class JribbleLoader {
             .getOuterClass());
       }
     }
-
-    // Patch up enclosing classes
-    for (String typeName : enclosingClasses.keySet()) {
-      CompiledClass inner = compiledClasses.get(typeName);
-      CompiledClass outer = compiledClasses.get(enclosingClasses.get(typeName));
-      if (outer == null) {
-        throw new InternalCompilerException(
-            "Outer class could not be found! (Inner class: " + typeName
-                + "; outer class: " + enclosingClasses.get(typeName));
-      }
-      inner.setEnclosingClass(outer);
-    }
   }
 }

@@ -302,7 +302,7 @@ public abstract class CompilationUnit implements Serializable {
    * Returns the full abstract path of the resource. If a resource has been
    * re-rooted, this path should include any path prefix that was stripped.
    * 
-   * @see com.google.gwt.dev.resource.Resource#getPath() 
+   * @see com.google.gwt.dev.resource.Resource#getPath()
    * @see com.google.gwt.dev.resource.Resource#getPathPrefix()
    */
   public abstract String getResourcePath();
@@ -314,6 +314,8 @@ public abstract class CompilationUnit implements Serializable {
 
   /**
    * Returns the GWT AST types in this unit.
+   * 
+   * TODO(lspoon) make abstract and push down
    */
   public List<JDeclaredType> getTypes() {
     try {
@@ -330,6 +332,8 @@ public abstract class CompilationUnit implements Serializable {
 
   /**
    * Returns the GWT AST types in this unit in serialized form.
+   * 
+   * TODO(lspoon) push down
    */
   public abstract byte[] getTypesSerialized();
 
@@ -412,7 +416,7 @@ public abstract class CompilationUnit implements Serializable {
   private List<String> getTopLevelClasses() {
     List<String> topLevelClasses = new ArrayList<String>();
     for (CompiledClass cc : getCompiledClasses()) {
-      if (cc.getEnclosingClass() == null) {
+      if (cc.isTopLevel()) {
         topLevelClasses.add(cc.getInternalName());
       }
     }
