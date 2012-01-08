@@ -348,6 +348,9 @@ class PersistentUnitCache extends MemoryUnitCache {
   public void add(CompilationUnit newUnit) {
     unitCacheMapLoader.await();
     super.add(newUnit);
+    if (!newUnit.shouldBePersisted()) {
+      return;
+    }
     UnitCacheEntry entry = unitMap.get(newUnit.getResourcePath());
     addCount.getAndIncrement();
     unitWriteQueue.add(new UnitWriteMessage(entry));
