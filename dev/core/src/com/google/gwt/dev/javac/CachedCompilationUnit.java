@@ -15,6 +15,7 @@
  */
 package com.google.gwt.dev.javac;
 
+import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
 import com.google.gwt.dev.util.DiskCacheToken;
 
@@ -151,8 +152,8 @@ public class CachedCompilationUnit extends CompilationUnit {
   }
 
   @Override
-  public byte[] getTypesSerialized() {
-    return astToken.readByteArray();
+  public List<JDeclaredType> getTypes() {
+    return getTypesFromSerialized(astToken.readByteArray());
   }
 
   @Override

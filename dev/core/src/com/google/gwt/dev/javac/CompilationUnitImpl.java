@@ -90,8 +90,8 @@ abstract class CompilationUnitImpl extends CompilationUnit {
   }
 
   @Override
-  public byte[] getTypesSerialized() {
-    return diskCache.readByteArray(astToken);
+  public List<JDeclaredType> getTypes() {
+    return getTypesFromSerialized(diskCache.readByteArray(astToken));
   }
 
   @Override

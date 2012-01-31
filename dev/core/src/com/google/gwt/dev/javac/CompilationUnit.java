@@ -212,7 +212,8 @@ public abstract class CompilationUnit implements Serializable {
 
   /**
    * Returns the unit as an instance of {@link CachedCompilationUnit}, making a
-   * copy if necessary.
+   * copy if necessary. Returns <code>null</code> if the unit should not be
+   * cached.
    */
   public abstract CachedCompilationUnit asCachedCompilationUnit();
 
@@ -302,7 +303,7 @@ public abstract class CompilationUnit implements Serializable {
    * Returns the full abstract path of the resource. If a resource has been
    * re-rooted, this path should include any path prefix that was stripped.
    * 
-   * @see com.google.gwt.dev.resource.Resource#getPath() 
+   * @see com.google.gwt.dev.resource.Resource#getPath()
    * @see com.google.gwt.dev.resource.Resource#getPathPrefix()
    */
   public abstract String getResourcePath();
@@ -315,23 +316,7 @@ public abstract class CompilationUnit implements Serializable {
   /**
    * Returns the GWT AST types in this unit.
    */
-  public List<JDeclaredType> getTypes() {
-    try {
-      byte[] bytes = getTypesSerialized();
-      ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
-      return JProgram.deserializeTypes(ois);
-    } catch (IOException e) {
-      throw new RuntimeException("Unexpected IOException on in-memory stream", e);
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException("Unexpected error deserializing AST for '" + getTypeName() + "'",
-          e);
-    }
-  }
-
-  /**
-   * Returns the GWT AST types in this unit in serialized form.
-   */
-  public abstract byte[] getTypesSerialized();
+  public abstract List<JDeclaredType> getTypes();
 
   @Deprecated
   public final boolean hasAnonymousClasses() {
@@ -371,6 +356,13 @@ public abstract class CompilationUnit implements Serializable {
   public abstract boolean isSuperSource();
 
   /**
+   * Whether this unit should be persisted to disk.
+   */
+  public boolean shouldBePersisted() {
+    return true;
+  }
+
+  /**
    * Overridden to finalize; always returns {@link #getResourceLocation()}.
    */
   @Override
@@ -383,7 +375,9 @@ public abstract class CompilationUnit implements Serializable {
    * {@link CachedCompilationUnit}.
    */
   protected final Object writeReplace() {
-    return asCachedCompilationUnit();
+    CachedCompilationUnit cachedUnit = asCachedCompilationUnit();
+    assert cachedUnit != null;
+    return cachedUnit;
   }
 
   /**
@@ -397,6 +391,22 @@ public abstract class CompilationUnit implements Serializable {
   abstract Dependencies getDependencies();
 
   abstract CategorizedProblem[] getProblems();
+
+  /**
+   * Read types from a serialized byte array. This is a helper method for
+   * subclasses that persist their types by serializing the GWT representations.
+   */
+  List<JDeclaredType> getTypesFromSerialized(byte[] serialized) {
+    try {
+      ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serialized));
+      return JProgram.deserializeTypes(ois);
+    } catch (IOException e) {
+      throw new RuntimeException("Unexpected IOException on in-memory stream", e);
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Unexpected error deserializing AST for '" + getTypeName() + "'",
+          e);
+    }
+  }
 
   private List<String> getJdtClassNames(String topLevelClass) {
     List<String> classNames = new ArrayList<String>();
@@ -412,7 +422,7 @@ public abstract class CompilationUnit implements Serializable {
   private List<String> getTopLevelClasses() {
     List<String> topLevelClasses = new ArrayList<String>();
     for (CompiledClass cc : getCompiledClasses()) {
-      if (cc.getEnclosingClass() == null) {
+      if (cc.isTopLevel()) {
         topLevelClasses.add(cc.getInternalName());
       }
     }
