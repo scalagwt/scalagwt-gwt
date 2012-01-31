@@ -119,16 +119,6 @@ public abstract class CompilationUnitBuilder {
     }
 
     @Override
-    public boolean isBinaryJribble() {
-      return false;
-    }
-    
-    @Override
-    public boolean isJribble() {
-      return false;
-    }
-
-    @Override
     protected String doGetSource() {
       return generatedUnit.getSource();
     }
@@ -146,6 +136,83 @@ public abstract class CompilationUnitBuilder {
     boolean isGenerated() {
       return true;
     }    
+  }
+
+  static class JribbleCompilationUnitBuilder extends CompilationUnitBuilder {
+    private final ClassLoader classLoader;
+    private final Resource resource;
+
+    public JribbleCompilationUnitBuilder(ClassLoader classLoader, Resource jribbleResource) {
+      this.classLoader = classLoader;
+      this.resource = jribbleResource;
+    }
+
+    public JribbleCompilationUnit build() {
+      String internalName = getTypeName().replace('.', '/');
+      /*
+       * Based on the comments, it's not clear that tracking whether a class is
+       * local is important. For now, always say false.
+       */
+      boolean isLocal = false;
+
+      byte[] classBytes = Util.readURLAsBytes(classLoader.getResource(internalName + ".class"));
+
+      CompiledClass compiledClass =
+          new CompiledClass(classBytes, isLocal, internalName, resource.getLastModified());
+
+      JribbleCompilationUnit unit = new JribbleCompilationUnit(resource, compiledClass);
+      return unit;
+    }
+
+    @Override
+    public ContentId getContentId() {
+      shouldNotBeCalled();
+      return null;
+    }
+
+    @Override
+    public long getLastModified() {
+      return resource.getLastModified();
+    }
+
+    @Override
+    public String getLocation() {
+      return resource.getLocation();
+    }
+
+    @Override
+    public String getTypeName() {
+      return Shared.toTypeName(resource.getPath());
+    }
+
+    @Override
+    public boolean isJribble() {
+      return true;
+    }
+
+    @Override
+    protected String doGetSource() {
+      shouldNotBeCalled();
+      return null;
+    }
+
+    @Override
+    protected CompilationUnit makeUnit(List<CompiledClass> compiledClasses,
+        List<JDeclaredType> types, Dependencies dependencies,
+        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
+        CategorizedProblem[] errors) {
+      shouldNotBeCalled();
+      return null;
+    }
+
+    /**
+     * It would be good to refactor the CompilationUnitBuilder hierarchy so that
+     * this method is never used, but that would substantially increase the size
+     * of the initial Jribble patch. Leaving it alone for now.
+     */
+    private void shouldNotBeCalled() {
+      throw new RuntimeException("Should not be called");
+    }
   }
 
   static class ResourceCompilationUnitBuilder extends CompilationUnitBuilder {
@@ -197,17 +264,6 @@ public abstract class CompilationUnitBuilder {
       return typeName;
     }
     
-    @Override
-    public boolean isBinaryJribble() {
-      return resource.getPath().endsWith(".jribble");
-    }
-    
-    @Override
-    public boolean isJribble() {
-      String path = resource.getPath();
-      return path.endsWith(".jribble") || path.endsWith(".jribbletxt");
-    }
-    
     public InputStream readSourceBinary() throws IOException {
       return resource.openContents();
     }
@@ -246,7 +302,12 @@ public abstract class CompilationUnitBuilder {
   }
 
   public static CompilationUnitBuilder create(Resource resource) {
-    return new ResourceCompilationUnitBuilder(resource);
+    if (resource.getPath().endsWith(".jribble") || resource.getPath().endsWith(".jribbletxt")) {
+      return new JribbleCompilationUnitBuilder(Thread.currentThread().getContextClassLoader(),
+          resource);
+    } else {
+      return new ResourceCompilationUnitBuilder(resource);
+    }
   }
 
   public static String makeContentId(String typeName, String strongHash) {
@@ -303,10 +364,14 @@ public abstract class CompilationUnitBuilder {
   }
 
   public abstract String getTypeName();
-
-  public abstract boolean isBinaryJribble();
   
-  public abstract boolean isJribble();
+  /**
+   * Whether this unit started as Java source code or as a Jribble protobuf
+   * message.
+   */
+  public boolean isJribble() {
+    return false;
+  }
   
   /**
    * Read in the source of this unit as binary. Only available if

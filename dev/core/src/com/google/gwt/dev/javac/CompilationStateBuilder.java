@@ -21,7 +21,6 @@ import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
-import com.google.gwt.dev.jjs.impl.jribble.JribbleLoader;
 import com.google.gwt.dev.js.ast.JsRootScope;
 import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.StringInterner;
@@ -238,10 +237,13 @@ public class CompilationStateBuilder {
         buildThread.start();
 
         ArrayList<CompilationUnitBuilder> javaBuilders = new ArrayList<CompilationUnitBuilder>();
-        ArrayList<CompilationUnitBuilder> jribbleBuilders = new ArrayList<CompilationUnitBuilder>();
         for (CompilationUnitBuilder builder : builders) {
           if (builder.isJribble()) {
-            jribbleBuilders.add(builder);
+            /*
+             * No Java compilation is necessary for Jribble, so start building
+             * them immediately.
+             */
+            buildQueue.add(builder);
           } else {
             javaBuilders.add(builder);
           }
@@ -250,10 +252,6 @@ public class CompilationStateBuilder {
         Event jdtCompilerEvent = SpeedTracerLogger.start(eventType);
         try {
           compiler.doCompile(javaBuilders);
-          
-          JribbleLoader jribbleLoader = new JribbleLoader(Thread
-              .currentThread().getContextClassLoader(), buildQueue);
-          jribbleLoader.load(jribbleBuilders);
         } finally {
           jdtCompilerEvent.end();
         }
