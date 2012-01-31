@@ -15,14 +15,14 @@
  */
 package com.google.gwt.dev.javac.asm;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.google.gwt.dev.asm.AnnotationVisitor;
 import com.google.gwt.dev.asm.Label;
 import com.google.gwt.dev.asm.Opcodes;
 import com.google.gwt.dev.asm.Type;
 import com.google.gwt.dev.asm.commons.EmptyVisitor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Collects data from a single method.
