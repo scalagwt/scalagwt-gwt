@@ -269,6 +269,40 @@ public class OwnerClassTest extends TestCase {
             code.append("}\n");
             return code;
           }
+        },
+        new MockJavaResource(
+            "com.google.gwt.uibinder.rebind.model.SetterMethodClass") {
+          @Override
+          public CharSequence getContent() {
+            StringBuffer code = new StringBuffer();
+            code.append("package com.google.gwt.uibinder.rebind.model;\n");
+            code.append("import com.google.gwt.uibinder.client.UiField;\n");
+            code.append("import com.google.gwt.user.client.ui.Label;\n");
+            code.append("public class ParentUiBinderClass {");
+            code.append("  @UiField private Label label1;");
+            code.append("  public void setLabel1(Label l1) {");
+            code.append("    label1 = l1;");
+            code.append("  }");
+            code.append("}\n");
+            return code;
+          }
+        },
+        new MockJavaResource(
+            "com.google.gwt.uibinder.rebind.model.ScalaSetterMethodClass") {
+          @Override
+          public CharSequence getContent() {
+            StringBuffer code = new StringBuffer();
+            code.append("package com.google.gwt.uibinder.rebind.model;\n");
+            code.append("import com.google.gwt.uibinder.client.UiField;\n");
+            code.append("import com.google.gwt.user.client.ui.Label;\n");
+            code.append("public class ParentUiBinderClass {");
+            code.append("  @UiField private Label label1;");
+            code.append("  public void label1_$eq(Label l1) {");
+            code.append("    label1 = l1;");
+            code.append("  }");
+            code.append("}\n");
+            return code;
+          }
         },};
 
     Set<Resource> rtn = new HashSet<Resource>(UiJavaResources.getUiResources());
@@ -526,5 +560,33 @@ public class OwnerClassTest extends TestCase {
     String[] mouseOverFields = mouseOverAnnotation.value();
     assertEquals(1, mouseOverFields.length);
     assertEquals("label1", mouseOverFields[0]);
+  }
+    
+  public void testOwnerClass_setterMethod() throws UnableToCompleteException {
+    // Finds traditional setter.
+    JClassType ownerType = types.findType("com.google.gwt.uibinder.rebind.model.SetterMethodClass");
+    OwnerClass ownerClass = new OwnerClass(ownerType, MortalLogger.NULL,
+        uiBinderCtx);
+
+    OwnerField ownerField = ownerClass.getUiField("label1");
+    assertNotNull(ownerField);
+    assertEquals("label1", ownerField.getName());
+    JMethod setter = ownerField.getSetterMethod();
+    assertNotNull(setter);
+    assertEquals("setLabel1", setter.getName());
+  }
+    
+  public void testOwnerClass_scalaSetterMethod() throws UnableToCompleteException {
+    // Finds scala named setter.
+    JClassType ownerType = types.findType("com.google.gwt.uibinder.rebind.model.ScalaSetterMethodClass");
+    OwnerClass ownerClass = new OwnerClass(ownerType, MortalLogger.NULL,
+        uiBinderCtx);
+
+    OwnerField ownerField = ownerClass.getUiField("label1");
+    assertNotNull(ownerField);
+    assertEquals("label1", ownerField.getName());
+    JMethod setter = ownerField.getSetterMethod();
+    assertNotNull(setter);
+    assertEquals("label1_$eq", setter.getName());
   }
 }
