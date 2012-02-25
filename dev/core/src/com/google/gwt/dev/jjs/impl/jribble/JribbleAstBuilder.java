@@ -139,7 +139,7 @@ public class JribbleAstBuilder {
    * The results from processing one DeclaredType.
    */
   public static class Result {
-    /** TODO(lspoon) make types not be a collection */
+    // TODO(lexspoon) make types not be a collection
     public final List<JDeclaredType> types;
     public final Set<String> apiRefs;
     public final MethodArgNamesLookup methodArgNames;
