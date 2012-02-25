@@ -52,6 +52,7 @@ public class UiBinderGenerator extends Generator {
   private static final String LAZY_WIDGET_BUILDERS_PROPERTY = "UiBinder.useLazyWidgetBuilders";
   
   private static boolean gaveSafeHtmlWarning;
+  private static boolean gaveLazyBuildersWarning;
 
   /**
    * Given a UiBinder interface, return the path to its ui.xml file, suitable
@@ -162,7 +163,8 @@ public class UiBinderGenerator extends Generator {
     MessagesWriter messages = new MessagesWriter(oracle, BINDER_URI, logger,
         templatePath, interfaceType.getPackage().getName(), implName);
 
-    boolean useLazyWidgetBuilders = useLazyWidgetBuilders(logger, propertyOracle);
+    boolean useLazyWidgetBuilders =
+        useLazyWidgetBuilders(logger, propertyOracle) && !designTime.isDesignTime();
     FieldManager fieldManager = new FieldManager(oracle, logger, useLazyWidgetBuilders);
 
     UiBinderWriter uiBinderWriter = new UiBinderWriter(interfaceType, implName,
@@ -212,7 +214,14 @@ public class UiBinderGenerator extends Generator {
   }
 
   private Boolean useLazyWidgetBuilders(MortalLogger logger, PropertyOracle propertyOracle) {
-    return extractConfigProperty(logger, propertyOracle, LAZY_WIDGET_BUILDERS_PROPERTY, false);
+    Boolean rtn = extractConfigProperty(logger, propertyOracle, LAZY_WIDGET_BUILDERS_PROPERTY, true);
+    if (!gaveLazyBuildersWarning && !rtn) {
+      logger.warn("Configuration property %s is false. Deprecated code generation is in play. " +
+                  "This property will soon become a no-op.",
+                  LAZY_WIDGET_BUILDERS_PROPERTY);
+      gaveLazyBuildersWarning = true;
+    }
+    return rtn;
   }
 
   private Boolean useSafeHtmlTemplates(MortalLogger logger, PropertyOracle propertyOracle) {
@@ -221,7 +230,8 @@ public class UiBinderGenerator extends Generator {
 
     if (!gaveSafeHtmlWarning && !rtn) {
       logger.warn("Configuration property %s is false! UiBinder SafeHtml integration is off, "
-          + "leaving your users more vulnerable to cross-site scripting attacks.",
+          + "leaving your users more vulnerable to cross-site scripting attacks. This property " +
+          "will soon become a no-op, and SafeHtml integration will always be on.",
           XSS_SAFE_CONFIG_PROPERTY);
       gaveSafeHtmlWarning = true;
     }

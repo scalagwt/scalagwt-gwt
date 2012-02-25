@@ -18,5 +18,6 @@
 <!-- package must inherit this module.                                      -->
 <!--                                                                        -->
 <module>
-	<inherits name="com.google.gwt.core.Core"/>
+  <inherits name="com.google.gwt.core.Core"/>
+  <inherits name="com.google.gwt.typedarrays.TypedArrays"/>
 </module>

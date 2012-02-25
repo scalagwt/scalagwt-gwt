@@ -1,12 +1,12 @@
 /*
  * Copyright 2008 Google Inc.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -32,6 +32,7 @@ import com.google.gwt.core.ext.linker.SymbolData;
 import com.google.gwt.core.ext.linker.SyntheticArtifact;
 import com.google.gwt.core.ext.linker.impl.StandardSymbolData;
 import com.google.gwt.core.ext.soyc.Range;
+import com.google.gwt.core.ext.soyc.SourceMapRecorder;
 import com.google.gwt.core.ext.soyc.impl.DependencyRecorder;
 import com.google.gwt.core.ext.soyc.impl.SizeMapRecorder;
 import com.google.gwt.core.ext.soyc.impl.SplitPointRecorder;
@@ -100,6 +101,7 @@ import com.google.gwt.dev.jjs.impl.SourceInfoCorrelator;
 import com.google.gwt.dev.jjs.impl.TypeTightener;
 import com.google.gwt.dev.jjs.impl.UnifyAst;
 import com.google.gwt.dev.jjs.impl.gflow.DataflowOptimizer;
+import com.google.gwt.dev.js.ClosureJsRunner;
 import com.google.gwt.dev.js.EvalFunctionsAtTopScope;
 import com.google.gwt.dev.js.JsBreakUpLargeVarStatements;
 import com.google.gwt.dev.js.JsCoerceIntShift;
@@ -120,8 +122,11 @@ import com.google.gwt.dev.js.JsUnusedFunctionRemover;
 import com.google.gwt.dev.js.JsVerboseNamer;
 import com.google.gwt.dev.js.SizeBreakdown;
 import com.google.gwt.dev.js.ast.JsBlock;
+import com.google.gwt.dev.js.ast.JsContext;
+import com.google.gwt.dev.js.ast.JsFunction;
 import com.google.gwt.dev.js.ast.JsName;
 import com.google.gwt.dev.js.ast.JsProgram;
+import com.google.gwt.dev.js.ast.JsVisitor;
 import com.google.gwt.dev.util.DefaultTextOutput;
 import com.google.gwt.dev.util.Empty;
 import com.google.gwt.dev.util.Memory;
@@ -144,6 +149,7 @@ import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -185,26 +191,32 @@ public class JavaToJavaScriptCompiler {
       this.statementRanges = statementRanges;
     }
 
+    @Override
     public void addArtifacts(Collection<? extends Artifact<?>> newArtifacts) {
       this.artifacts.addAll(newArtifacts);
     }
 
+    @Override
     public ArtifactSet getArtifacts() {
       return artifacts;
     }
 
+    @Override
     public byte[][] getJs() {
       return js;
     }
 
+    @Override
     public Permutation getPermutation() {
       return permutation;
     }
 
+    @Override
     public byte[] getSerializedSymbolMap() {
       return serializedSymbolMap;
     }
 
+    @Override
     public StatementRanges[] getStatementRanges() {
       return statementRanges;
     }
@@ -228,7 +240,7 @@ public class JavaToJavaScriptCompiler {
 
   /**
    * Compiles a particular permutation, based on a precompiled unified AST.
-   * 
+   *
    * @param logger the logger to use
    * @param unifiedAst the result of a
    *          {@link #precompile(TreeLogger, ModuleDef, RebindPermutationOracle, String[], String[], JJSOptions, boolean, PrecompilationMetricsArtifact)}
@@ -329,7 +341,7 @@ public class JavaToJavaScriptCompiler {
 
       /*
        * Work around Safari 5 bug by rewriting a >> b as ~~a >> b.
-       * 
+       *
        * No shifts may be generated after this point.
        */
       JsCoerceIntShift.exec(jsProgram, logger, propertyOracles);
@@ -351,21 +363,11 @@ public class JavaToJavaScriptCompiler {
       }
 
       // detect if browser is ie6 or not known
-      boolean isIE6orUnknown = false;
-      for (PropertyOracle oracle : propertyOracles) {
-        try {
-          SelectionProperty userAgentProperty = oracle.getSelectionProperty(logger, "user.agent");
-          if ("ie6".equals(userAgentProperty.getCurrentValue())) {
-            isIE6orUnknown = true;
-            break;
-          }
-        } catch (BadPropertyValueException e) {
-          // user agent unknown; play it safe
-          isIE6orUnknown = true;
-          break;
-        }
-      }
+      boolean isIE6orUnknown = findBooleanProperty(propertyOracles, logger, "user.agent", "ie6",
+          true, false, true);
 
+      boolean isSourceMapsEnabled = findBooleanProperty(propertyOracles, logger,
+          "compiler.useSourceMaps", "true", true, false, false);
       // (10.5) Obfuscate
       Map<JsName, String> obfuscateMap = Maps.create();
       switch (options.getOutput()) {
@@ -386,7 +388,7 @@ public class JavaToJavaScriptCompiler {
           }
           break;
         case PRETTY:
-          // We don't intern strings in pretty mode to improve readability
+          // We don't intern strings in pretty mode to imprmakeSouove readability
           JsPrettyNamer.exec(jsProgram);
           break;
         case DETAILED:
@@ -421,15 +423,15 @@ public class JavaToJavaScriptCompiler {
       SizeBreakdown[] sizeBreakdowns =
           options.isSoycEnabled() || options.isCompilerMetricsEnabled()
               ? new SizeBreakdown[js.length] : null;
-      List<Map<Range, SourceInfo>> sourceInfoMaps =
-          options.isSoycExtra() ? new ArrayList<Map<Range, SourceInfo>>() : null;
-      generateJavaScriptCode(options, jsProgram, jjsmap, js, ranges, sizeBreakdowns,
-          sourceInfoMaps, splitBlocks);
+      List<Map<Range, SourceInfo>> sourceInfoMaps = new ArrayList<Map<Range, SourceInfo>>();
+      generateJavaScriptCode(options, jprogram, jsProgram, jjsmap, js, ranges,
+          sizeBreakdowns, sourceInfoMaps, splitBlocks, isSourceMapsEnabled);
 
       PermutationResult toReturn =
-          new PermutationResultImpl(js, permutation, makeSymbolMap(symbolTable), ranges);
+          new PermutationResultImpl(js, permutation, makeSymbolMap(symbolTable, jsProgram), ranges);
       CompilationMetricsArtifact compilationMetrics = null;
-      if (options.isCompilerMetricsEnabled()) {
+      // TODO: enable this when ClosureCompiler is enabled
+      if (!options.isClosureCompilerEnabled() && options.isCompilerMetricsEnabled()) {
         compilationMetrics = new CompilationMetricsArtifact(permutation.getId());
         compilationMetrics.setCompileElapsedMilliseconds(System.currentTimeMillis()
             - startTimeMilliseconds);
@@ -440,9 +442,21 @@ public class JavaToJavaScriptCompiler {
         toReturn.addArtifacts(Lists.create(unifiedAst.getModuleMetrics(), unifiedAst
             .getPrecompilationMetrics(), compilationMetrics));
       }
-      toReturn.addArtifacts(makeSoycArtifacts(logger, permutationId, jprogram, js, sizeBreakdowns,
-          sourceInfoMaps, dependencies, jjsmap, obfuscateMap, unifiedAst.getModuleMetrics(),
-          unifiedAst.getPrecompilationMetrics(), compilationMetrics, options.isSoycHtmlDisabled()));
+
+      // TODO: enable this when ClosureCompiler is enabled
+      if (!options.isClosureCompilerEnabled()) {
+        toReturn.addArtifacts(makeSoycArtifacts(logger, permutationId, jprogram, js, sizeBreakdowns,
+            options.isSoycExtra() ? sourceInfoMaps : null, dependencies, jjsmap, obfuscateMap,
+            unifiedAst.getModuleMetrics(), unifiedAst.getPrecompilationMetrics(), compilationMetrics,
+            options.isSoycHtmlDisabled()));
+      }
+
+      // TODO: enable this when ClosureCompiler is enabled
+      if (!options.isClosureCompilerEnabled() && isSourceMapsEnabled) {
+        logger.log(TreeLogger.INFO, "Source Maps Enabled");
+        toReturn.addArtifacts(SourceMapRecorder.makeSourceMapArtifacts(sourceInfoMaps,
+            permutationId));
+      }
 
       logTrackingStats(logger);
       if (logger.isLoggable(TreeLogger.TRACE)) {
@@ -457,6 +471,29 @@ public class JavaToJavaScriptCompiler {
     }
   }
 
+  /**
+   * Look for a selection property in all property oracles.
+   */
+  public static boolean findBooleanProperty(PropertyOracle[] propertyOracles, TreeLogger logger,
+      String name, String valueToFind, boolean valueIfFound, boolean valueIfNotFound,
+      boolean valueIfError) {
+    boolean toReturn = valueIfNotFound;
+    for (PropertyOracle oracle : propertyOracles) {
+      try {
+        SelectionProperty property = oracle.getSelectionProperty(logger, name);
+        if (valueToFind.equals(property.getCurrentValue())) {
+          toReturn = valueIfFound;
+          break;
+        }
+      } catch (BadPropertyValueException e) {
+        // unknown value play it safe
+        toReturn = valueIfError;
+        break;
+      }
+    }
+    return toReturn;
+  }
+
   public static UnifiedAst precompile(TreeLogger logger, ModuleDef module,
       RebindPermutationOracle rpo, String[] declEntryPts, String[] additionalRootTypes,
       JJSOptions options, boolean singlePermutation) throws UnableToCompleteException {
@@ -466,7 +503,7 @@ public class JavaToJavaScriptCompiler {
 
   /**
    * Performs a precompilation, returning a unified AST.
-   * 
+   *
    * @param logger the logger to use
    * @param module the module to compile
    * @param rpo the RebindPermutationOracle
@@ -588,7 +625,7 @@ public class JavaToJavaScriptCompiler {
 
       /*
        * 4) Possibly optimize some.
-       * 
+       *
        * Don't optimize early if this is a draft compile, or if there's only one
        * permutation.
        */
@@ -780,7 +817,7 @@ public class JavaToJavaScriptCompiler {
 
       /*
        * Enum ordinalization.
-       * 
+       *
        * TODO(jbrosenberg): graduate this out of the 'isAggressivelyOptimize'
        * block, over time.
        */
@@ -932,23 +969,35 @@ public class JavaToJavaScriptCompiler {
   /**
    * Generate JavaScript code from the given JavaScript ASTs. Also produces
    * information about that transformation.
-   * 
+   *
    * @param options The options this compiler instance is running with
+   * @param jprogram The original Java program AST
    * @param jsProgram The AST to convert to source code
    * @param jjsMap A map between the JavaScript AST and the Java AST it came
-   *          from
+*          from
    * @param js An array to hold the output JavaScript
    * @param ranges An array to hold the statement ranges for that JavaScript
    * @param sizeBreakdowns An array to hold the size breakdowns for that
-   *          JavaScript
+*          JavaScript
    * @param sourceInfoMaps An array to hold the source info maps for that
-   *          JavaScript
+*          JavaScript
    * @param splitBlocks true if current permutation is for IE6 or unknown
+   * @param sourceMapsEnabled
    */
-  private static void generateJavaScriptCode(JJSOptions options, JsProgram jsProgram,
+  private static void generateJavaScriptCode(JJSOptions options,
+      JProgram jprogram, JsProgram jsProgram,
       JavaToJavaScriptMap jjsMap, String[] js, StatementRanges[] ranges,
-      SizeBreakdown[] sizeBreakdowns, List<Map<Range, SourceInfo>> sourceInfoMaps,
-      boolean splitBlocks) {
+      SizeBreakdown[] sizeBreakdowns,
+      List<Map<Range, SourceInfo>> sourceInfoMaps,
+      boolean splitBlocks, boolean sourceMapsEnabled) {
+
+    boolean useClosureCompiler = options.isClosureCompilerEnabled();
+    if (useClosureCompiler) {
+      ClosureJsRunner runner = new ClosureJsRunner();
+      runner.compile(jprogram, jsProgram, js, options.getOutput());
+      return;
+    }
+
     for (int i = 0; i < js.length; i++) {
       DefaultTextOutput out = new DefaultTextOutput(options.getOutput().shouldMinimize());
       JsSourceGenerationVisitorWithSizeBreakdown v;
@@ -980,15 +1029,18 @@ public class JavaToJavaScriptCompiler {
        * the top level blocks into sub-blocks if they exceed 32767 statements.
        */
       Event functionClusterEvent = SpeedTracerLogger.start(CompilerEventType.FUNCTION_CLUSTER);
-      // only cluster for obfuscated mode
-      if (options.isAggressivelyOptimize() && options.getOutput() == JsOutputOption.OBFUSCATED) {
+      // TODO(cromwellian) move to the Js AST, re-enable sourcemaps + clustering
+      if (!sourceMapsEnabled
+          && options.isAggressivelyOptimize()
+          // only cluster for obfuscated mode
+          && options.getOutput() == JsOutputOption.OBFUSCATED) {
         transformer = new JsFunctionClusterer(transformer);
         transformer.exec();
       }
       functionClusterEvent.end();
 
       // rewrite top-level blocks to limit the number of statements
-      if (splitBlocks) {
+      if (!sourceMapsEnabled && splitBlocks) {
         transformer = new JsIEBlockTextTransformer(transformer);
         transformer.exec();
       }
@@ -1006,7 +1058,7 @@ public class JavaToJavaScriptCompiler {
 
   /**
    * This method can be used to fetch the list of referenced classs.
-   * 
+   *
    * This method is intended to support compiler metrics in the precompile
    * phase.
    */
@@ -1134,7 +1186,7 @@ public class JavaToJavaScriptCompiler {
 
   /**
    * Create a variable assignment to invoke a call to the statistics collector.
-   * 
+   *
    * <pre>
    * Stats.isStatsAvailable() &&
    *   Stats.onModuleStart("mainClassName");
@@ -1155,13 +1207,31 @@ public class JavaToJavaScriptCompiler {
     return amp.makeStatement();
   }
 
-  private static SymbolData[] makeSymbolMap(Map<StandardSymbolData, JsName> symbolTable) {
+  private static SymbolData[] makeSymbolMap(Map<StandardSymbolData, JsName> symbolTable,
+      JsProgram jsProgram) {
+
+    final Map<JsName, Integer> nameToFragment = new HashMap<JsName, Integer>();
+    for (int i = 0; i < jsProgram.getFragmentCount(); i++) {
+      final Integer fragId = i;
+      new JsVisitor() {
+        @Override
+        public void endVisit(JsFunction x, JsContext ctx) {
+            if (x.getName() != null) {
+              nameToFragment.put(x.getName(), fragId);
+            }
+        }
+      }.accept(jsProgram.getFragmentBlock(i));
+    }
 
     SymbolData[] result = new SymbolData[symbolTable.size()];
     int i = 0;
     for (Map.Entry<StandardSymbolData, JsName> entry : symbolTable.entrySet()) {
       StandardSymbolData symbolData = entry.getKey();
       symbolData.setSymbolName(entry.getValue().getShortIdent());
+      Integer fragNum = nameToFragment.get(entry.getValue());
+      if (fragNum != null) {
+        symbolData.setFragmentNumber(fragNum);
+      }
       result[i++] = symbolData;
     }
     return result;

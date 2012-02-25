@@ -124,6 +124,44 @@ public class NumberFormat_en_Test extends GWTTestCase {
     formatter = NumberFormat.getCurrencyFormat("ITL");
     str = formatter.format(1234.556);
     assertEquals("IT₤1,235", str);
+
+    // Test simple currency formatting
+    str = NumberFormat.getSimpleCurrencyFormat().format(1234.75);
+    assertEquals("$1,234.75", str);
+    str = NumberFormat.getSimpleCurrencyFormat().format(-1234.75);
+    assertEquals("($1,234.75)", str);
+    str = NumberFormat.getSimpleCurrencyFormat("CAD").format(1234.75);
+    assertEquals("$1,234.75", str);
+    str = NumberFormat.getSimpleCurrencyFormat("AUD").format(1234.75);
+    assertEquals("$1,234.75", str);
+    str = NumberFormat.getSimpleCurrencyFormat("JPY").format(1234.75);
+    assertEquals("¥1,235", str);
+    str = NumberFormat.getSimpleCurrencyFormat("CNY").format(1234.75);
+    assertEquals("¥1,234.75", str);
+
+    // Test global currency formatting
+    str = NumberFormat.getGlobalCurrencyFormat().format(1234.75);
+    assertEquals("$1,234.75 USD", str);
+    str = NumberFormat.getGlobalCurrencyFormat().format(-1234.75);
+    assertEquals("($1,234.75) USD", str);
+    str = NumberFormat.getGlobalCurrencyFormat("CAD").format(1234.75);
+    assertEquals("$1,234.75 CAD", str);
+    str = NumberFormat.getGlobalCurrencyFormat("AUD").format(1234.75);
+    assertEquals("$1,234.75 AUD", str);
+    str = NumberFormat.getGlobalCurrencyFormat("JPY").format(1234.75);
+    assertEquals("¥1,235 JPY", str);
+    str = NumberFormat.getGlobalCurrencyFormat("CNY").format(1234.75);
+    assertEquals("¥1,234.75 CNY", str);
+
+    // Test overriding the number of fractional digits
+    formatter = NumberFormat.getCurrencyFormat("USD").overrideFractionDigits(0);
+    str = formatter.format(1234.556);
+    assertEquals("$1,235", str);
+    formatter = NumberFormat.getCurrencyFormat("USD").overrideFractionDigits(3, 4);
+    str = formatter.format(1234.556);
+    assertEquals("$1,234.556", str);
+    str = formatter.format(1234.55637);
+    assertEquals("$1,234.5564", str);
   }
 
   public void testExponential() {

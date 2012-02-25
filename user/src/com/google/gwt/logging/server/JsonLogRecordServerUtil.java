@@ -16,6 +16,8 @@
 
 package com.google.gwt.logging.server;
 
+import com.google.gwt.core.client.impl.SerializableThrowable;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -71,14 +73,20 @@ public class JsonLogRecordServerUtil {
     Throwable cause =
       throwableFromJson(t.getString("cause"));
     StackTraceElement[] stackTrace = null;
-    JSONArray st = t.getJSONArray("stackTrace");
-    if (st.length() > 0) {
-      stackTrace = new StackTraceElement[st.length()];
-      for (int i = 0; i < st.length(); i++) {
-        stackTrace[i] = stackTraceElementFromJson(st.getString(i));
+    if (t.has("stackTrace")) {
+      JSONArray st = t.getJSONArray("stackTrace");
+      if (st.length() > 0) {
+        stackTrace = new StackTraceElement[st.length()];
+        for (int i = 0; i < st.length(); i++) {
+          stackTrace[i] = stackTraceElementFromJson(st.getString(i));
+        }
       }
+    } else {
+      stackTrace = new StackTraceElement[0];
     }
-    Throwable thrown = new Throwable(message, cause);
+    String exceptionClass = t.getString("type");
+    SerializableThrowable.ThrowableWithClassName thrown = 
+        new SerializableThrowable.ThrowableWithClassName(message, cause, exceptionClass);
     thrown.setStackTrace(stackTrace);
     return thrown;
   }
