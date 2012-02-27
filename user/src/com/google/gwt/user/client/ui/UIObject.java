@@ -17,6 +17,7 @@ package com.google.gwt.user.client.ui;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
+import com.google.gwt.debug.client.DebugInfo;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.user.client.DOM;
 
@@ -171,12 +172,18 @@ public abstract class UIObject implements HasVisibility {
     public void ensureDebugId(Element elem, String baseID, String id) {
       assert baseID != null;
       baseID = (baseID.length() > 0) ? baseID + "-" : "";
-      DOM.setElementProperty(elem.<com.google.gwt.user.client.Element> cast(),
-          "id", DEBUG_ID_PREFIX + baseID + id);
+      String prefix = DebugInfo.getDebugIdPrefix();
+      String debugId = ((prefix == null) ? "" : prefix) + baseID + id;
+      String attribute = DebugInfo.getDebugIdAttribute();
+      if (DebugInfo.isDebugIdAsProperty()) {
+        elem.setPropertyString(attribute, debugId);
+      } else {
+        elem.setAttribute(attribute, debugId);
+      }
     }
   }
 
-  public static final String DEBUG_ID_PREFIX = "gwt-debug-";
+  public static final String DEBUG_ID_PREFIX = DebugInfo.DEFAULT_DEBUG_ID_PREFIX;
 
   static final String MISSING_ELEMENT_ERROR = "This UIObject's element is not set; "
       + "you may be missing a call to either Composite.initWidget() or "
@@ -530,7 +537,7 @@ public abstract class UIObject implements HasVisibility {
 
   /**
    * Gets the object's offset height in pixels. This is the total height of the
-   * object, including decorations such as border, margin, and padding.
+   * object, including decorations such as border and padding, but not margin.
    * 
    * @return the object's offset height
    */
@@ -540,7 +547,7 @@ public abstract class UIObject implements HasVisibility {
 
   /**
    * Gets the object's offset width in pixels. This is the total width of the
-   * object, including decorations such as border, margin, and padding.
+   * object, including decorations such as border and padding, but not margin.
    * 
    * @return the object's offset width
    */

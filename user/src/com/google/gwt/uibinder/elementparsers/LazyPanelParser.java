@@ -17,6 +17,7 @@ package com.google.gwt.uibinder.elementparsers;
 
 import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.core.ext.typeinfo.JClassType;
+import com.google.gwt.uibinder.rebind.FieldWriter;
 import com.google.gwt.uibinder.rebind.UiBinderWriter;
 import com.google.gwt.uibinder.rebind.XMLElement;
 import com.google.gwt.user.client.ui.LazyPanel;
@@ -36,6 +37,10 @@ public class LazyPanelParser implements ElementParser {
   public void parse(XMLElement elem, String fieldName, JClassType type,
       UiBinderWriter writer) throws UnableToCompleteException {
 
+    if (writer.getOwnerClass().getUiField(fieldName).isProvided()) {
+      return;
+    }
+
     if (!writer.useLazyWidgetBuilders()) {
       writer.die("LazyPanel only works with UiBinder.useLazyWidgetBuilders enabled.");
     }
@@ -45,13 +50,13 @@ public class LazyPanelParser implements ElementParser {
       writer.die(child, "Expecting only widgets in %s", elem);
     }
 
-    String childFieldName = writer.parseElementToField(child);
+    FieldWriter childField = writer.parseElementToField(child);
 
     String lazyPanelClassPath = LazyPanel.class.getName();
     String widgetClassPath = Widget.class.getName();
 
-    String code = String.format(
-        INITIALIZER_FORMAT, lazyPanelClassPath, widgetClassPath, childFieldName);
+    String code = String.format(INITIALIZER_FORMAT, lazyPanelClassPath,
+        widgetClassPath, childField.getNextReference());
     writer.setFieldInitializer(fieldName, code);
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.google.gwt.dev.javac;
 
+import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.util.DiskCache;
 import com.google.gwt.dev.util.Util;
 
@@ -89,11 +90,6 @@ public class MockCompilationUnit extends CompilationUnit {
   }
 
   @Override
-  public byte[] getTypesSerialized() {
-    return null;
-  }
-
-  @Override
   public boolean isError() {
     return false;
   }
@@ -121,5 +117,10 @@ public class MockCompilationUnit extends CompilationUnit {
   @Override
   CategorizedProblem[] getProblems() {
     return new CategorizedProblem[0];
+  }
+
+  @Override
+  public List<JDeclaredType> getTypes() {
+    return null;
   }
 }
