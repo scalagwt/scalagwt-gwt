@@ -20,7 +20,6 @@ import com.google.gwt.core.ext.typeinfo.JClassType;
 import com.google.gwt.core.ext.typeinfo.JField;
 import com.google.gwt.core.ext.typeinfo.JMethod;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.uibinder.rebind.IndentedWriter;
 import com.google.gwt.uibinder.rebind.MortalLogger;
 import com.google.gwt.uibinder.rebind.UiBinderContext;
 
@@ -44,7 +43,7 @@ public class OwnerField {
    *
    * @param field the field of the owner class
    * @param logger
-   * @param context 
+   * @param context
    */
   public OwnerField(JField field, MortalLogger logger, UiBinderContext context)
             throws UnableToCompleteException {
@@ -56,7 +55,7 @@ public class OwnerField {
    *
    * @param field the field of the owner class
    * @param logger
-   * @param context 
+   * @param context
    * @param setterMethod
    */
   public OwnerField(JField field, MortalLogger logger, UiBinderContext context, JMethod setterMethod)
@@ -101,6 +100,14 @@ public class OwnerField {
   }
 
   /**
+   * Returns the setter method used to set this field if one exists.
+   * If null then set the field regularly.
+   */
+  public JMethod getSetterMethod() {
+    return setterMethod;
+  }
+
+  /**
    * Returns a descriptor for the type of the field.
    */
   public OwnerFieldClass getType() {
@@ -113,14 +120,6 @@ public class OwnerField {
    */
   public boolean isProvided() {
     return isProvided;
-  }
-
-  /**
-   * Returns the setter method used to set this field if one exists.
-   * If null then set the field regularly.
-   */
-  public JMethod getSetterMethod() {
-    return setterMethod;
   }
 
   @Override

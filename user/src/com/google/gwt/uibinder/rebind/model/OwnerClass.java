@@ -169,7 +169,7 @@ public class OwnerClass {
           logger.die("Factory return type is not a class in method "
               + method.getName());
         }
-        
+
         JParameterizedType paramType = factoryType.isParameterized();
         if (paramType != null) {
           factoryType = paramType.getRawType();
@@ -240,6 +240,27 @@ public class OwnerClass {
   }
 
   /**
+   * Scans the owner class to find all methods annotated with @UiHandler, and
+   * adds them to their respective fields.
+   *
+   * @param ownerType the type of the owner class
+   */
+  private void findUiHandlers(JClassType ownerType) {
+    JMethod[] methods = ownerType.getMethods();
+    for (JMethod method : methods) {
+      if (method.isAnnotationPresent(UiHandler.class)) {
+        uiHandlers.add(method);
+      }
+    }
+
+    // Recurse to superclass
+    JClassType superclass = ownerType.getSuperclass();
+    if (superclass != null) {
+      findUiHandlers(superclass);
+    }
+  }
+
+  /**
    * Returns true iff method is a single parameter method that takes a {@param type}, returns
    * nothing, and its name contains the {@param fieldName}.
    */
@@ -262,26 +283,5 @@ public class OwnerClass {
     }
 
     return type.isAssignableTo((JClassType) params[0]);
-  }
-
-  /**
-   * Scans the owner class to find all methods annotated with @UiHandler, and
-   * adds them to their respective fields.
-   *
-   * @param ownerType the type of the owner class
-   */
-  private void findUiHandlers(JClassType ownerType) {
-    JMethod[] methods = ownerType.getMethods();
-    for (JMethod method : methods) {
-      if (method.isAnnotationPresent(UiHandler.class)) {
-        uiHandlers.add(method);
-      }
-    }
-
-    // Recurse to superclass
-    JClassType superclass = ownerType.getSuperclass();
-    if (superclass != null) {
-      findUiHandlers(superclass);
-    }
   }
 }

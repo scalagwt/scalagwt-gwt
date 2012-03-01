@@ -337,7 +337,12 @@ abstract class AbstractFieldWriter implements FieldWriter {
 
     if ((ownerField != null) && !ownerField.isProvided()) {
       w.newline();
-      w.write("owner.%1$s = %1$s;", name);
+
+      if (ownerField.getSetterMethod() != null) {
+        w.write("owner.%1$s(%2$s);", ownerField.getSetterMethod().getName(), name);
+      } else {
+        w.write("owner.%1$s = %2$s;", name, name);
+      }
     }
 
     w.newline();
