@@ -440,9 +440,14 @@ public class CompilationStateBuilder {
       }
 
       CompilationUnit cachedUnit = unitCache.find(resource.getPathPrefix() + resource.getPath());
+      
+      // Skip Jribble units. Their type dependencies are currently not recorded
+      // accurately, and anyway, it is not clear there is a speedup from loading
+      // from cache rather than loading from bytecode.
+      if (builder.isJribble()) {
+        cachedUnit = null;
+      }
 
-      // Try to rescue cached units from previous sessions where a jar has been
-      // recompiled.
       if (cachedUnit != null && cachedUnit.getLastModified() != resource.getLastModified()) {
         unitCache.remove(cachedUnit);
         if (cachedUnit instanceof CachedCompilationUnit
