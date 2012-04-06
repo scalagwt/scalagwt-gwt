@@ -278,7 +278,9 @@ public class JribbleAstBuilderTest extends TestCase {
     
     Statement s4 = statement(assignment(arrayRef(varRef("a"), literal(0)), literal("0")));
 
-    zaz.stmts = asList(s1, s2, s3, s4);
+    Statement s5 = varDef(stringA, "b", arrayInitializer(stringType()));
+
+    zaz.stmts = asList(s1, s2, s3, s4, s5);
     foo.classBody = asList(declaration(zaz.build()), foo.defaultCstr);
 
     JClassType fooType = (JClassType) process(foo);
@@ -292,6 +294,11 @@ public class JribbleAstBuilderTest extends TestCase {
     JDeclarationStatement decl2 = (JDeclarationStatement) ((JMethodBody) zazMethod.getBody()).getStatements().get(2);
     Assert.assertEquals(null, ((JNewArray) decl2.getInitializer()).dims);
     Assert.assertEquals(1, ((JNewArray) decl2.getInitializer()).getArrayType().getDims());
+    // String[] {}
+    JDeclarationStatement decl3 = (JDeclarationStatement) ((JMethodBody) zazMethod.getBody()).getStatements().get(4);
+    Assert.assertEquals(null, ((JNewArray) decl3.getInitializer()).dims);
+    Assert.assertEquals(Collections.EMPTY_LIST, ((JNewArray) decl3.getInitializer()).initializers);
+    Assert.assertEquals(1, ((JNewArray) decl3.getInitializer()).getArrayType().getDims());
   }
 
   public void testInterfacesTreatedAsClasses() throws Exception {
