@@ -121,6 +121,7 @@ import com.google.gwt.dev.jjs.impl.jribble.JribbleProtos.While;
 import com.google.gwt.dev.util.StringInterner;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -584,6 +585,8 @@ public class JribbleAstBuilder {
     }
 
     private JNewArray newArray(NewArray expr, LocalStack local) {
+      //semantics of NewArray is tricky, check jribble.proto file
+      //for examples
       JType type = mapper.getType(expr.getElementType()); // this is the element
                                                           // type
       assert (expr.getInitExprCount() > 0 && expr.getDimensions() == 1)
@@ -595,6 +598,9 @@ public class JribbleAstBuilder {
           initializers.add(expression(e, local));
         }
         return JNewArray.createInitializers(UNKNOWN, arrayType, initializers);
+      } else if (expr.getDimensions() == 1 && expr.getDimensionExprCount() == 0) {
+        JArrayType arrayType = new JArrayType(type);
+        return JNewArray.createInitializers(UNKNOWN, arrayType, Collections.<JExpression> emptyList());
       } else {
         for (int i = 0; i < expr.getDimensions(); i++) {
           type = new JArrayType(type);
