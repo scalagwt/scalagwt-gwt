@@ -421,8 +421,9 @@ public class JribbleAstBuilder {
     MethodCall call = expr.getMethodCall();
     
     MethodSignature sig = call.getSignature();
-    if (!"scala.util".equals(sig.getOwner().getPkg()) ||
-        !"package$".equals(sig.getOwner().getName()) ||
+    // XXX: for now, allow nativeCode function to be defined in any package
+    if (//!"scala.util".equals(sig.getOwner().getPkg()) ||
+        //!"package$".equals(sig.getOwner().getName()) ||
         !"nativeCode".equals(sig.getName())) return false;
     if (call.getArgumentCount() != 1) return false;
     Expr argument = call.getArgument(0);
