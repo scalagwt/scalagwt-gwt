@@ -53,8 +53,6 @@ public class JribbleAstBuilderTest extends TestCase {
     assertEquals(fooType, "testEmptyClass");
   }
 
-  // test package object ClassDef with a None ext
-
   public void testOneVoidMethod() throws Exception {
     DeclaredTypeBuilder foo = new DeclaredTypeBuilder("foo.Bar", false);
     MethodDefBuilder zaz = new MethodDefBuilder("zaz");
