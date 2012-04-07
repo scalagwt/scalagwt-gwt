@@ -584,18 +584,14 @@ public class JribbleAstBuilder {
     }
 
     private JNewArray newArray(NewArray expr, LocalStack local) {
+      // semantics of NewArray are tricky, check jribble.proto file
+      // for examples
       JType type = mapper.getType(expr.getElementType()); // this is the element
                                                           // type
       assert (expr.getInitExprCount() > 0 && expr.getDimensions() == 1)
           || expr.getInitExprCount() == 0;
-      if (expr.getInitExprCount() > 0) {
-        JArrayType arrayType = new JArrayType(type);
-        List<JExpression> initializers = new LinkedList<JExpression>();
-        for (Expr e : expr.getInitExprList()) {
-          initializers.add(expression(e, local));
-        }
-        return JNewArray.createInitializers(UNKNOWN, arrayType, initializers);
-      } else {
+
+      if (expr.getDimensionExprCount() > 0) {
         for (int i = 0; i < expr.getDimensions(); i++) {
           type = new JArrayType(type);
         }
@@ -607,6 +603,13 @@ public class JribbleAstBuilder {
           dims.add(JAbsentArrayDimension.INSTANCE);
         }
         return JNewArray.createDims(UNKNOWN, (JArrayType) type, dims);
+      } else {
+        JArrayType arrayType = new JArrayType(type);
+        List<JExpression> initializers = new LinkedList<JExpression>();
+        for (Expr e : expr.getInitExprList()) {
+          initializers.add(expression(e, local));
+        }
+        return JNewArray.createInitializers(UNKNOWN, arrayType, initializers);
       }
     }
 

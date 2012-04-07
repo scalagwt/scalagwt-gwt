@@ -1,0 +1,8 @@
+interface SpecialList extends List {
+  private static final void $clinit(){
+  }
+
+  abstract String zaz(Integer x);
+
+
+}

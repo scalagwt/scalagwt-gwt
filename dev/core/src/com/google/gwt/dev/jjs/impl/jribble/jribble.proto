@@ -275,6 +275,31 @@ message MethodSignature {
   required Type returnType = 4;
 }
 
+/* Encodes both new array expresions and array literals.
+ * Below there are Java expressions and corresponding
+ * protobufs that encode them.
+ *
+ * new Object[7]
+ * newArray {
+ *   elementType ... //encoding for java.lang.Object
+ *   dimensions: 1
+ *   dimensionExpr { ... //expr encoding 7 }
+ * }
+ *
+ * new Object[] {}
+ * newArray {
+ *   elementType ... //encoding for java.lang.Object
+ *   dimensions: 1
+ * }
+ *
+ * new Object[] { ex1, ex2 }
+ * newArray {
+ *   elementType ... //encoding for java.lang.Object
+ *   dimensions: 1
+ *   initExpr { ... } //encoding for ex1
+ *   initExpr { ... } //encoding for ex2
+ * }
+ */
 message NewArray {
   required Type elementType = 1;
   required int32 dimensions = 2;
