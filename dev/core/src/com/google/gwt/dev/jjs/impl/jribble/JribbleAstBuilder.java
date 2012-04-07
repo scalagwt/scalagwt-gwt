@@ -585,8 +585,8 @@ public class JribbleAstBuilder {
     }
 
     private JNewArray newArray(NewArray expr, LocalStack local) {
-      //semantics of NewArray is tricky, check jribble.proto file
-      //for examples
+      // semantics of NewArray are tricky, check jribble.proto file
+      // for examples
       JType type = mapper.getType(expr.getElementType()); // this is the element
                                                           // type
       assert (expr.getInitExprCount() > 0 && expr.getDimensions() == 1)
