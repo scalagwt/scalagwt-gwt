@@ -61,22 +61,6 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
   private static final String FAIL_IF_SCRIPT_TAG_PROPERTY = "xsiframe.failIfScriptTag";
 
   @Override
-  protected String generateDeferredFragment(TreeLogger logger,
-      LinkerContext context, int fragment, String js) {
-    // TODO(unnurg): This assumes that the xsiframe linker is using the
-    // ScriptTagLoadingStrategy (since it is also xs compatible).  However,
-    // it should be completely valid to use the XhrLoadingStrategy with this
-    // linker, in which case we would not want to wrap the deferred fragment
-    // in this way.  Ideally, we should make a way for this code to be dependent
-    // on what strategy is being used. Otherwise, we should make a property which
-    // users can set to turn this wrapping off if they override the loading strategy.
-    return String.format("$wnd.%s.runAsyncCallback%d(%s)\n",
-        context.getModuleFunctionName(),
-        fragment,
-        JsToStringGenerationVisitor.javaScriptString(js));
-  }
-  
-  @Override
   public String getDescription() {
     return "Cross-Site-Iframe";
   }
@@ -103,7 +87,7 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
     // Must do permutations before providers
     includeJs(ss, logger, getJsPermutations(context), "__PERMUTATIONS__");
     includeJs(ss, logger, getJsProperties(context), "__PROPERTIES__");
-    
+
     // Order doesn't matter for the rest
     includeJs(ss, logger, getJsProcessMetas(context), "__PROCESS_METAS__");
     includeJs(ss, logger, getJsInstallLocation(context), "__INSTALL_LOCATION__");
@@ -111,6 +95,7 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
     includeJs(ss, logger, getJsComputeUrlForResource(context), "__COMPUTE_URL_FOR_RESOURCE__");
     includeJs(ss, logger, getJsLoadExternalStylesheets(context), "__LOAD_STYLESHEETS__");
     includeJs(ss, logger, getJsRunAsync(context), "__RUN_ASYNC__");
+    includeJs(ss, logger, getJsDevModeRedirectHook(context), "__DEV_MODE_REDIRECT_HOOK__");
 
     // This Linker does not support <script> tags in the gwt.xml
     SortedSet<ScriptReference> scripts = artifacts.find(ScriptReference.class);
@@ -189,6 +174,11 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
     return ".cache.js";
   }
 
+   protected String getDeferredFragmentSuffix(TreeLogger logger, LinkerContext context,
+      int fragment) {
+    return "\n//@ sourceURL=" + fragment + ".js\n";
+  }
+
   @Override
   protected String getHostedFilename() {
     return "devmode.js";
@@ -216,6 +206,15 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
    */
   protected String getJsComputeUrlForResource(LinkerContext context) {
     return "com/google/gwt/core/ext/linker/impl/computeUrlForResource.js";
+  }
+
+  /**
+   * Returns a code fragment to check for the new development mode.
+   */
+  protected String getJsDevModeRedirectHook(LinkerContext context) {
+    // Temporarily disabled by default.
+    // return "com/google/gwt/core/linker/DevModeRedirectHook.js";
+    return "";
   }
 
   /**
@@ -303,7 +302,7 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
   protected String getJsProperties(LinkerContext context) {
     return "com/google/gwt/core/ext/linker/impl/properties.js";
   }
-  
+
   /**
    * Returns the name of the {@code JsRunAsync} script.  By default,
    * returns {@code "com/google/gwt/core/ext/linker/impl/runAsync.js"}.
@@ -362,7 +361,7 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
     out.newlineOpt();
     out.print("function __gwtInstallCode(code) {return __gwtModuleFunction.__installRunAsyncCode(code);}");
     out.newlineOpt();
-    
+
     // Even though we call the $sendStats function in the code written in this
     // linker, some of the compilation code still needs the $stats and
     // $sessionId
@@ -386,7 +385,7 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
         + "__gwtModuleFunction.__computePropValue);");
     out.newlineOpt();
     out.print("$sendStats('moduleStartup', 'end');");
-
+    out.print("\n//@ sourceURL=0.js\n");
     return out.toString();
   }
 
@@ -506,12 +505,34 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
   }
 
   @Override
+  protected String wrapDeferredFragment(TreeLogger logger,
+      LinkerContext context, int fragment, String js, ArtifactSet artifacts) {
+    // TODO(unnurg): This assumes that the xsiframe linker is using the
+    // ScriptTagLoadingStrategy (since it is also xs compatible).  However,
+    // it should be completely valid to use the XhrLoadingStrategy with this
+    // linker, in which case we would not want to wrap the deferred fragment
+    // in this way.  Ideally, we should make a way for this code to be dependent
+    // on what strategy is being used. Otherwise, we should make a property which
+    // users can set to turn this wrapping off if they override the loading strategy.
+    return String.format("$wnd.%s.runAsyncCallback%d(%s)\n",
+        context.getModuleFunctionName(),
+        fragment,
+        JsToStringGenerationVisitor.javaScriptString(js));
+  }
+
+  @Override
   protected String wrapPrimaryFragment(TreeLogger logger, LinkerContext context, String script,
       ArtifactSet artifacts, CompilationResult result) throws UnableToCompleteException {
-    StringBuffer out = new StringBuffer();
+
+    StringBuilder out = new StringBuilder();
+
     if (shouldIncludeBootstrapInPrimaryFragment(context)) {
       out.append(generateSelectionScript(logger, context, artifacts, result));
+      // only needed in SSSS, breaks WebWorker linker if done all the time
+      out.append("if (" + context.getModuleFunctionName() + ".succeeded) {\n");
     }
+
+
     if (shouldInstallCode(context)) {
       // Rewrite the code so it can be installed with
       // __MODULE_FUNC__.onScriptDownloaded
@@ -523,11 +544,14 @@ public class CrossSiteIframeLinker extends SelectionScriptLinker {
         newChunks.add(JsToStringGenerationVisitor.javaScriptString(chunk));
       }
       out.append(Joiner.on(", ").join(newChunks));
-      out.append("])");
+      out.append("]);\n");
     } else {
       out.append(script);
+      out.append("\n");
+    }
+    if (shouldIncludeBootstrapInPrimaryFragment(context)) {
+      out.append("}\n");
     }
     return out.toString();
   }
-
 }

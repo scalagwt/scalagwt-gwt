@@ -21,7 +21,6 @@ import com.google.gwt.dev.javac.JdtCompiler.UnitProcessor;
 import com.google.gwt.dev.jjs.CorrelationFactory.DummyCorrelationFactory;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
 import com.google.gwt.dev.jjs.impl.GwtAstBuilder;
-import com.google.gwt.dev.jjs.impl.jribble.JribbleLoader;
 import com.google.gwt.dev.js.ast.JsRootScope;
 import com.google.gwt.dev.resource.Resource;
 import com.google.gwt.dev.util.StringInterner;
@@ -238,10 +237,13 @@ public class CompilationStateBuilder {
         buildThread.start();
 
         ArrayList<CompilationUnitBuilder> javaBuilders = new ArrayList<CompilationUnitBuilder>();
-        ArrayList<CompilationUnitBuilder> jribbleBuilders = new ArrayList<CompilationUnitBuilder>();
         for (CompilationUnitBuilder builder : builders) {
           if (builder.isJribble()) {
-            jribbleBuilders.add(builder);
+            /*
+             * No Java compilation is necessary for Jribble, so start building
+             * them immediately.
+             */
+            buildQueue.add(builder);
           } else {
             javaBuilders.add(builder);
           }
@@ -250,10 +252,6 @@ public class CompilationStateBuilder {
         Event jdtCompilerEvent = SpeedTracerLogger.start(eventType);
         try {
           compiler.doCompile(javaBuilders);
-          
-          JribbleLoader jribbleLoader = new JribbleLoader(Thread
-              .currentThread().getContextClassLoader(), buildQueue);
-          jribbleLoader.load(jribbleBuilders);
         } finally {
           jdtCompilerEvent.end();
         }
@@ -442,9 +440,14 @@ public class CompilationStateBuilder {
       }
 
       CompilationUnit cachedUnit = unitCache.find(resource.getPathPrefix() + resource.getPath());
+      
+      // Skip Jribble units. Their type dependencies are currently not recorded
+      // accurately, and anyway, it is not clear there is a speedup from loading
+      // from cache rather than loading from bytecode.
+      if (builder.isJribble()) {
+        cachedUnit = null;
+      }
 
-      // Try to rescue cached units from previous sessions where a jar has been
-      // recompiled.
       if (cachedUnit != null && cachedUnit.getLastModified() != resource.getLastModified()) {
         unitCache.remove(cachedUnit);
         if (cachedUnit instanceof CachedCompilationUnit

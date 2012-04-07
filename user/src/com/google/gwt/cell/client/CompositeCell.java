@@ -216,22 +216,29 @@ public class CompositeCell<C> extends AbstractCell<C> {
     return hasCell.getCell().isEditing(context, cellParent, hasCell.getValue(object));
   }  
 
-  private <X> void onBrowserEventImpl(Context context, Element parent,
+  private <X> void onBrowserEventImpl(final Context context, Element parent,
       final C object, NativeEvent event, final ValueUpdater<C> valueUpdater,
       final HasCell<C, X> hasCell) {
+    Cell<X> cell = hasCell.getCell();
+    String eventType = event.getType();
+    Set<String> cellConsumedEvents = cell.getConsumedEvents();
+    if (cellConsumedEvents == null || !cellConsumedEvents.contains(eventType)) {
+      // If this sub-cell doesn't consume this event.
+      return;
+    }
     ValueUpdater<X> tempUpdater = null;
     final FieldUpdater<C, X> fieldUpdater = hasCell.getFieldUpdater();
     if (fieldUpdater != null) {
       tempUpdater = new ValueUpdater<X>() {
+        @Override
         public void update(X value) {
-          fieldUpdater.update(-1, object, value);
+          fieldUpdater.update(context.getIndex(), object, value);
           if (valueUpdater != null) {
             valueUpdater.update(object);
           }
         }
       };
     }
-    Cell<X> cell = hasCell.getCell();
     cell.onBrowserEvent(context, parent, hasCell.getValue(object), event,
         tempUpdater);
   }

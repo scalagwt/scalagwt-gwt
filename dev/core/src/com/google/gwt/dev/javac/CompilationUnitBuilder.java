@@ -15,173 +15,23 @@
  */
 package com.google.gwt.dev.javac;
 
+import com.google.gwt.dev.jjs.InternalCompilerException;
+import com.google.gwt.dev.jjs.ast.JDeclaredType;
+import com.google.gwt.dev.resource.Resource;
+import com.google.gwt.dev.util.Util;
+
+import org.eclipse.jdt.core.compiler.CategorizedProblem;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 
-import org.eclipse.jdt.core.compiler.CategorizedProblem;
-
-import com.google.gwt.dev.jjs.InternalCompilerException;
-import com.google.gwt.dev.jjs.ast.JDeclaredType;
-import com.google.gwt.dev.resource.Resource;
-import com.google.gwt.dev.util.Util;
-
 /**
  * Builds a {@link CompilationUnit}.
  */
 public abstract class CompilationUnitBuilder {
-
-  static class GeneratedCompilationUnitBuilder extends CompilationUnitBuilder {
-    private final GeneratedUnit generatedUnit;
-
-    private GeneratedCompilationUnitBuilder(GeneratedUnit generatedUnit) {
-      this.generatedUnit = generatedUnit;
-    }
-
-    @Override
-    public ContentId getContentId() {
-      return new ContentId(getTypeName(), generatedUnit.getStrongHash());
-    }
-
-    @Override
-    public String getLocation() {
-      return getLocationFor(generatedUnit);
-    }
-    
-    @Override
-    public long getLastModified() {
-      return generatedUnit.creationTime();
-    }
-
-    @Override
-    public String getTypeName() {
-      return generatedUnit.getTypeName();
-    }
-
-    @Override
-    public boolean isJribble() {
-      return false;
-    }
-    
-    @Override
-    public boolean isBinaryJribble() {
-      return false;
-    }
-
-    @Override
-    protected String doGetSource() {
-      return generatedUnit.getSource();
-    }
-
-    @Override
-    protected CompilationUnit makeUnit(List<CompiledClass> compiledClasses,
-        List<JDeclaredType> types, Dependencies dependencies,
-        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
-        CategorizedProblem[] problems) {
-      return new GeneratedCompilationUnit(generatedUnit, compiledClasses, types, dependencies,
-          jsniMethods, methodArgs, problems);
-    }
-
-    @Override
-    boolean isGenerated() {
-      return true;
-    }    
-  }
-
-  static class ResourceCompilationUnitBuilder extends CompilationUnitBuilder {
-    /**
-     * Not valid until source has been read.
-     */
-    private ContentId contentId;
-
-    private long lastModifed = -1;
-
-    private final Resource resource;
-
-    private final String typeName;
-
-    private ResourceCompilationUnitBuilder(Resource resource) {
-      this.typeName = Shared.toTypeName(resource.getPath());
-      this.resource = resource;
-    }
-
-    @Override
-    public ContentId getContentId() {
-      if (contentId == null) {
-        getSource();
-      }
-      return contentId;
-    }
-
-    @Override
-    public long getLastModified() {
-      if (lastModifed < 0) {
-        return resource.getLastModified();
-      } else {
-        // Value when the source was actually read.
-        return lastModifed;
-      }
-    }
-
-    @Override
-    public String getLocation() {
-      return resource.getLocation();
-    }
-
-    public Resource getResource() {
-      return resource;
-    }
-
-    @Override
-    public String getTypeName() {
-      return typeName;
-    }
-    
-    @Override
-    public boolean isJribble() {
-      String path = resource.getPath();
-      return path.endsWith(".jribble") || path.endsWith(".jribbletxt");
-    }
-    
-    @Override
-    public boolean isBinaryJribble() {
-      return resource.getPath().endsWith(".jribble");
-    }
-    
-    public InputStream readSourceBinary() throws IOException {
-      return resource.openContents();
-    }
-
-    @Override
-    protected String doGetSource() {
-      /*
-       * Pin the mod date first to be conservative, we'd rather a unit be seen
-       * as too stale than too fresh.
-       */
-      lastModifed = resource.getLastModified();
-      ByteArrayOutputStream out = new ByteArrayOutputStream(1024);
-      try {
-        InputStream in = resource.openContents();
-        Util.copy(in, out);
-      } catch (IOException e) {
-        throw new RuntimeException("Unexpected error reading resource '" + resource + "'", e);
-      }
-      byte[] content = out.toByteArray();
-      contentId = new ContentId(getTypeName(), Util.computeStrongName(content));
-      return Util.toString(content);
-    }
-
-    @Override
-    protected CompilationUnit makeUnit(List<CompiledClass> compiledClasses,
-        List<JDeclaredType> types, Dependencies dependencies,
-        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
-        CategorizedProblem[] problems) {
-      return new SourceFileCompilationUnit(getResource(), getContentId(), compiledClasses, types,
-          dependencies, jsniMethods, methodArgs, problems, getLastModified());
-    }
-  }
 
   static final class GeneratedCompilationUnit extends CompilationUnitImpl {
     private final GeneratedUnit generatedUnit;
@@ -241,12 +91,223 @@ public abstract class CompilationUnitBuilder {
     }
   }
 
+  static class GeneratedCompilationUnitBuilder extends CompilationUnitBuilder {
+    private final GeneratedUnit generatedUnit;
+
+    private GeneratedCompilationUnitBuilder(GeneratedUnit generatedUnit) {
+      this.generatedUnit = generatedUnit;
+    }
+
+    @Override
+    public ContentId getContentId() {
+      return new ContentId(getTypeName(), generatedUnit.getStrongHash());
+    }
+
+    @Override
+    public long getLastModified() {
+      return generatedUnit.creationTime();
+    }
+    
+    @Override
+    public String getLocation() {
+      return getLocationFor(generatedUnit);
+    }
+
+    @Override
+    public String getTypeName() {
+      return generatedUnit.getTypeName();
+    }
+
+    @Override
+    protected String doGetSource() {
+      return generatedUnit.getSource();
+    }
+
+    @Override
+    protected CompilationUnit makeUnit(List<CompiledClass> compiledClasses,
+        List<JDeclaredType> types, Dependencies dependencies,
+        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
+        CategorizedProblem[] problems) {
+      return new GeneratedCompilationUnit(generatedUnit, compiledClasses, types, dependencies,
+          jsniMethods, methodArgs, problems);
+    }
+
+    @Override
+    boolean isGenerated() {
+      return true;
+    }    
+  }
+
+  static class JribbleCompilationUnitBuilder extends CompilationUnitBuilder {
+    private final ClassLoader classLoader;
+    private final Resource resource;
+
+    public JribbleCompilationUnitBuilder(ClassLoader classLoader, Resource jribbleResource) {
+      this.classLoader = classLoader;
+      this.resource = jribbleResource;
+    }
+
+    public JribbleCompilationUnit build() {
+      String internalName = getTypeName().replace('.', '/');
+      /*
+       * Based on the comments, it's not clear that tracking whether a class is
+       * local is important. For now, always say false.
+       */
+      boolean isLocal = false;
+
+      byte[] classBytes = Util.readURLAsBytes(classLoader.getResource(internalName + ".class"));
+
+      CompiledClass compiledClass =
+          new CompiledClass(classBytes, isLocal, internalName, resource.getLastModified());
+
+      JribbleCompilationUnit unit = new JribbleCompilationUnit(resource, compiledClass);
+      return unit;
+    }
+
+    @Override
+    public ContentId getContentId() {
+      shouldNotBeCalled();
+      return null;
+    }
+
+    @Override
+    public long getLastModified() {
+      return resource.getLastModified();
+    }
+
+    @Override
+    public String getLocation() {
+      return resource.getLocation();
+    }
+
+    @Override
+    public String getTypeName() {
+      return Shared.toTypeName(resource.getPath());
+    }
+
+    @Override
+    public boolean isJribble() {
+      return true;
+    }
+
+    @Override
+    protected String doGetSource() {
+      shouldNotBeCalled();
+      return null;
+    }
+
+    @Override
+    protected CompilationUnit makeUnit(List<CompiledClass> compiledClasses,
+        List<JDeclaredType> types, Dependencies dependencies,
+        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
+        CategorizedProblem[] errors) {
+      shouldNotBeCalled();
+      return null;
+    }
+
+    /**
+     * It would be good to refactor the CompilationUnitBuilder hierarchy so that
+     * this method is never used, but that would substantially increase the size
+     * of the initial Jribble patch. Leaving it alone for now.
+     */
+    private void shouldNotBeCalled() {
+      throw new RuntimeException("Should not be called");
+    }
+  }
+
+  static class ResourceCompilationUnitBuilder extends CompilationUnitBuilder {
+    /**
+     * Not valid until source has been read.
+     */
+    private ContentId contentId;
+
+    private long lastModifed = -1;
+
+    private final Resource resource;
+
+    private final String typeName;
+
+    private ResourceCompilationUnitBuilder(Resource resource) {
+      this.typeName = Shared.toTypeName(resource.getPath());
+      this.resource = resource;
+    }
+
+    @Override
+    public ContentId getContentId() {
+      if (contentId == null) {
+        getSource();
+      }
+      return contentId;
+    }
+
+    @Override
+    public long getLastModified() {
+      if (lastModifed < 0) {
+        return resource.getLastModified();
+      } else {
+        // Value when the source was actually read.
+        return lastModifed;
+      }
+    }
+
+    @Override
+    public String getLocation() {
+      return resource.getLocation();
+    }
+
+    public Resource getResource() {
+      return resource;
+    }
+
+    @Override
+    public String getTypeName() {
+      return typeName;
+    }
+    
+    public InputStream readSourceBinary() throws IOException {
+      return resource.openContents();
+    }
+
+    @Override
+    protected String doGetSource() {
+      /*
+       * Pin the mod date first to be conservative, we'd rather a unit be seen
+       * as too stale than too fresh.
+       */
+      lastModifed = resource.getLastModified();
+      ByteArrayOutputStream out = new ByteArrayOutputStream(1024);
+      try {
+        InputStream in = resource.openContents();
+        Util.copy(in, out);
+      } catch (IOException e) {
+        throw new RuntimeException("Unexpected error reading resource '" + resource + "'", e);
+      }
+      byte[] content = out.toByteArray();
+      contentId = new ContentId(getTypeName(), Util.computeStrongName(content));
+      return Util.toString(content);
+    }
+
+    @Override
+    protected CompilationUnit makeUnit(List<CompiledClass> compiledClasses,
+        List<JDeclaredType> types, Dependencies dependencies,
+        Collection<? extends JsniMethod> jsniMethods, MethodArgNamesLookup methodArgs,
+        CategorizedProblem[] problems) {
+      return new SourceFileCompilationUnit(getResource(), getContentId(), compiledClasses, types,
+          dependencies, jsniMethods, methodArgs, problems, getLastModified());
+    }
+  }
+
   public static CompilationUnitBuilder create(GeneratedUnit generatedUnit) {
     return new GeneratedCompilationUnitBuilder(generatedUnit);
   }
 
   public static CompilationUnitBuilder create(Resource resource) {
-    return new ResourceCompilationUnitBuilder(resource);
+    if (resource.getPath().endsWith(".jribble") || resource.getPath().endsWith(".jribbletxt")) {
+      return new JribbleCompilationUnitBuilder(Thread.currentThread().getContextClassLoader(),
+          resource);
+    } else {
+      return new ResourceCompilationUnitBuilder(resource);
+    }
   }
 
   public static String makeContentId(String typeName, String strongHash) {
@@ -291,9 +352,9 @@ public abstract class CompilationUnitBuilder {
 
   public abstract ContentId getContentId();
 
-  public abstract String getLocation();
-  
   public abstract long getLastModified();
+  
+  public abstract String getLocation();
 
   public String getSource() {
     if (source == null) {
@@ -303,10 +364,14 @@ public abstract class CompilationUnitBuilder {
   }
 
   public abstract String getTypeName();
-
-  public abstract boolean isJribble();
   
-  public abstract boolean isBinaryJribble();
+  /**
+   * Whether this unit started as Java source code or as a Jribble protobuf
+   * message.
+   */
+  public boolean isJribble() {
+    return false;
+  }
   
   /**
    * Read in the source of this unit as binary. Only available if
