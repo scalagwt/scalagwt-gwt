@@ -15,6 +15,7 @@ class Bar extends Object {
     aa[0][0] = "s";
     String[] a = new String[] {"1", "2"};
     a[0] = "0";
+    String[] b = new String[] {};
   }
 
   public Bar(){
