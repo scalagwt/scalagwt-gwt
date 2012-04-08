@@ -187,9 +187,10 @@ public class JribbleAstBuilder {
    * Given a top-level ClassDef/InterfaceDef, creates a full GWT AST.
    */
   private class AstWalker {
-
+    
     /**
      * Resolves the scope of JS identifiers solely within the scope of a method.
+     * compare com.google.gwt.dev.jjs.GwtAstBuilder.JsParameterResolver
      */
     private class JsParameterResolver extends JsAbstractSymbolResolver {
       private final JsFunction jsFunction;
@@ -593,6 +594,7 @@ public class JribbleAstBuilder {
       assert def.getType() == DeclarationType.Method;
       Method jrMethod = def.getMethod();
       boolean isStatic = def.getModifiers().getIsStatic();
+      //boolean isNative = def.getModifiers().getIsNative(); // TODO: jribble doesn't set native flag
       JMethod m = mapper.getMethod(signature(classDef, jrMethod), isStatic,
           false);
       Map<String, JParameter> params = new HashMap<String, JParameter>();
@@ -601,7 +603,7 @@ public class JribbleAstBuilder {
       }
       if (jrMethod.hasBody()) {
         if (isNative(jrMethod)) {
-          nativeMethod(jrMethod, m);
+          nativeMethod(jrMethod, m, enclosingClass);
         } else {
           JMethodBody body = (JMethodBody) m.getBody();
           LocalStack local = new LocalStack(enclosingClass, body, params);
@@ -646,17 +648,16 @@ public class JribbleAstBuilder {
       }
     }
 
-    private void nativeMethod(Method jrMethod, JMethod m) {
+    private void nativeMethod(Method jrMethod, JMethod m, JDeclaredType enclosingType) {
       String nativeCode = jsniGetNativeCode(jrMethod);
       SourceInfo sourceInfo = m.getBody().getSourceInfo();
       JsniMethodBody body = new JsniMethodBody(sourceInfo);
       
-      // TODO use class name here instead of file name
-      String enclosingType = sourceInfo.getFileName();
+      String typeName = enclosingType.getName();
       
       // TODO do we need to use a different scope?
       JsFunction func = jsniParseFunction(jrMethod,
-          nativeCode, enclosingType, sourceInfo,
+          nativeCode, typeName, sourceInfo,
           JsRootScope.INSTANCE);
       func.setFromJava(true);
       body.setFunc(func);
@@ -668,11 +669,7 @@ public class JribbleAstBuilder {
       //JsniResolver jsniResolver = new JsniResolver(body);
       //jsniResolver.accept(func);
       
-      String jsniSignature = jsniGetSignature(enclosingType, jrMethod);
-      //System.out.println(jsniSignature);
-      //for (JsParameter param : jsFunc.getParameters()) {
-      //  System.out.println(param.getName());
-      //}
+      String jsniSignature = jsniGetSignature(typeName, jrMethod);
       createJsniMethod(new JsniMethodImpl(jsniSignature, func, false));
     }
     
@@ -1068,17 +1065,20 @@ public class JribbleAstBuilder {
       return false;
     }
   }
-
-  private static boolean isNative(Method method) {
-    if (!method.hasBody()) return false;
-    Statement body = method.getBody();
+  
+  /**
+   * determine whether the method <code>m</code> is a native method
+   */
+  private static boolean isNative(Method m) {
+    if (!m.hasBody()) return false;
+    Statement body = m.getBody();
     
     if (body.getType() != Statement.StatementType.Block) return false;
     Block block = body.getBlock();
     
     if (block.getStatementCount() != 1) return false;
     Statement statement = block.getStatement(0);
-    
+
     if (statement.getType() != Statement.StatementType.Expr) return false;
     Expr expr = statement.getExpr();
     
@@ -1090,10 +1090,9 @@ public class JribbleAstBuilder {
     if (//!"scala.util".equals(sig.getOwner().getPkg()) ||
         //!"package$".equals(sig.getOwner().getName()) ||
         !"nativeCode".equals(sig.getName())) return false;
+    
     if (call.getArgumentCount() != 1) return false;
     Expr argument = call.getArgument(0);
-    
-    // TODO: warn if the method return type is Nothing, as this is probably an error
     
     if (argument.getType() != Expr.ExprType.Literal) return false;
     Literal literal = argument.getLiteral();
@@ -1110,18 +1109,47 @@ public class JribbleAstBuilder {
     }
   }
   
-  private static String jsniGetNativeCode(Method method) {
-    return method.getBody()
-                 .getBlock()
-                 .getStatement(0)
-                 .getExpr()
-                 .getMethodCall()
-                 .getArgument(0)
-                 .getLiteral()
-                 .getStringValue();
+  /**
+   * Extract jsni code from native method <code>m</code>.
+   */
+  private static String jsniGetNativeCode(Method m) {
+    // disallow native methods with Nothing as a return type
+    Type returnType = m.getReturnType();
+    if (returnType.hasNamedType()) {
+      GlobalName ret = returnType.getNamedType();
+      if ("scala".equals(ret.getPkg()) && "Nothing".equals(ret.getName())) {
+        throw new InternalCompilerException("native method cannot have return type of Nothing");
+      }
+    }
+    
+    try {
+      Statement body = m.getBody();
+      Block block = body.getBlock();
+      Statement statement = block.getStatement(0);
+      Expr expr = statement.getExpr();
+      MethodCall call = expr.getMethodCall();
+      MethodSignature sig = call.getSignature();
+      // XXX: for now, allow nativeCode function to be defined in any package
+      if (//!"scala.util".equals(sig.getOwner().getPkg()) ||
+          //!"package$".equals(sig.getOwner().getName()) ||
+          !"nativeCode".equals(sig.getName())) {
+        throw new InternalCompilerException("native method body must be a call to 'nativeCode'");
+      }
+      Expr argument = call.getArgument(0);      
+      Literal literal = argument.getLiteral();      
+      return literal.getStringValue();
+      
+    } catch (InternalCompilerException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new InternalCompilerException("error while processing native method", e);
+    }
   }
   
-  private static JsFunction jsniParseFunction(Method method,
+  /**
+   * Parse jsni code for native method <code>m</code>.
+   */
+  private static JsFunction jsniParseFunction(Method m,
       String jsniCode, String enclosingType, SourceInfo info,
       JsScope scope) {
     // mostly copied from com.google.gwt.core.dev.javac.JsniCollector
@@ -1132,9 +1160,9 @@ public class JribbleAstBuilder {
     // name later when we generate the JavaScript during code generation.
     //
     StringBuilder functionSource = new StringBuilder("function (");
-    if (method.getParamDefCount() > 0) {
+    if (m.getParamDefCount() > 0) {
       boolean first = true;
-      for (ParamDef arg : method.getParamDefList()) {
+      for (ParamDef arg : m.getParamDefList()) {
         if (first) {
           first = false;
         } else {
@@ -1171,7 +1199,7 @@ public class JribbleAstBuilder {
       return jsFunc;
     } catch (IOException e) {
       throw new InternalCompilerException("Internal error parsing JSNI in '"
-          + enclosingType + '.' + method.getName() + "'", e);
+          + enclosingType + '.' + m.getName() + "'", e);
     } catch (JsParserException e) {
       // TODO fix error handling
       //int problemCharPos = computeAbsoluteProblemPosition(indexes, e
@@ -1184,14 +1212,23 @@ public class JribbleAstBuilder {
       //msg = msg.substring(pos + 2);
       //reportJsniError(errorInfo, method, msg);
       throw new InternalCompilerException("Internal error parsing JSNI in '"
-          + enclosingType + '.' + method.getName() + "'", e);
+          + enclosingType + '.' + m.getName() + "'", e);
     }
   }
   
+  /**
+   * Gets a unique name for this method and its signature (this is used to
+   * determine whether one method overrides another).
+   * compare com.google.gwt.dev.javac.JsniCollector.getJsniSignature
+   */
   private static String jsniGetSignature(String enclosingType, Method method) {
     return '@' + enclosingType + "::" + jsniGetMemberSignature(method);
   }
   
+  /**
+   * Gets a unique name for this method, including its signature.
+   * compare com.google.gwt.dev.javac.MethodVisitor.getMemberSignature
+   */
   private static String jsniGetMemberSignature(Method method) {
     String name = method.getName();
     StringBuilder sb = new StringBuilder();
@@ -1239,7 +1276,7 @@ public class JribbleAstBuilder {
       sb.append(";");
       return sb.toString();
     }
-    throw new InternalCompilerException("Uknown jsni parameter type " + tpe);
+    throw new InternalCompilerException("Unknown jsni parameter type " + tpe);
   }
 
   private static MethodSignature signature(DeclaredType enclosing, Method m) {

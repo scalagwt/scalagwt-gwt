@@ -72,7 +72,10 @@ public class JribbleCompilationUnit extends CompilationUnit {
 
   @Override
   public List<JsniMethod> getJsniMethods() {
-    return jsniMethods; // TODO: make a defensive copy?
+    if (jsniMethods == null) {
+      loadFromJribble();
+    }
+    return jsniMethods;
   }
 
   @Override
