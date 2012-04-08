@@ -594,7 +594,7 @@ public class JribbleAstBuilder {
       assert def.getType() == DeclarationType.Method;
       Method jrMethod = def.getMethod();
       boolean isStatic = def.getModifiers().getIsStatic();
-      //boolean isNative = def.getModifiers().getIsNative(); // TODO: jribble doesn't set native flag
+      boolean isNative = def.getModifiers().getIsNative();
       JMethod m = mapper.getMethod(signature(classDef, jrMethod), isStatic,
           false);
       Map<String, JParameter> params = new HashMap<String, JParameter>();
@@ -602,7 +602,7 @@ public class JribbleAstBuilder {
         params.put(x.getName(), x);
       }
       if (jrMethod.hasBody()) {
-        if (isNative(jrMethod)) {
+        if (isNative) {
           nativeMethod(jrMethod, m, enclosingClass);
         } else {
           JMethodBody body = (JMethodBody) m.getBody();
@@ -1066,41 +1066,6 @@ public class JribbleAstBuilder {
     }
   }
   
-  /**
-   * determine whether the method <code>m</code> is a native method
-   */
-  private static boolean isNative(Method m) {
-    if (!m.hasBody()) return false;
-    Statement body = m.getBody();
-    
-    if (body.getType() != Statement.StatementType.Block) return false;
-    Block block = body.getBlock();
-    
-    if (block.getStatementCount() != 1) return false;
-    Statement statement = block.getStatement(0);
-
-    if (statement.getType() != Statement.StatementType.Expr) return false;
-    Expr expr = statement.getExpr();
-    
-    if (expr.getType() != Expr.ExprType.MethodCall) return false;
-    MethodCall call = expr.getMethodCall();
-    
-    MethodSignature sig = call.getSignature();
-    // XXX: for now, allow nativeCode function to be defined in any package
-    if (//!"scala.util".equals(sig.getOwner().getPkg()) ||
-        //!"package$".equals(sig.getOwner().getName()) ||
-        !"nativeCode".equals(sig.getName())) return false;
-    
-    if (call.getArgumentCount() != 1) return false;
-    Expr argument = call.getArgument(0);
-    
-    if (argument.getType() != Expr.ExprType.Literal) return false;
-    Literal literal = argument.getLiteral();
-    
-    if (literal.getType() != Literal.LiteralType.String) return false;
-    return true;
-  }
-  
   private static String javaName(GlobalName name) {
     if (name.hasPkg()) {
       return intern(name.getPkg() + "." + name.getName());
@@ -1111,6 +1076,60 @@ public class JribbleAstBuilder {
   
   /**
    * Extract jsni code from native method <code>m</code>.
+   * 
+   * Native methods must be annotated with @native so that the devmode will work,
+   * since this marks the method as native in the classfile.
+   * 
+   * The method body must consist of a single call to the function <code>nativeCode</code>
+   * with a single literal string as argument.  The <code>nativeCode</code> function
+   * has type Nothing, which is not a valid return type, so we also require that
+   * the method return type be set to something other than nothing.
+   * 
+   * Here is an example jsni method with the jribble that encodes it:
+   * 
+   * @native def jsniAdd(x: Int, y: Int): Int = nativeCode(" return x+y; ") 
+   * 
+   * member {
+   *   type: Method
+   *   modifiers {
+   *     ...
+   *     isNative: true
+   *   }
+   *   method {
+   *     name: "jsniAdd"
+   *     paramDef ...
+   *     paramDef ...
+   *     returnType ... // check that this is not scala.Nothing
+   *     body {
+   *       type: Block
+   *       block {
+   *         statement {
+   *           type: Expr
+   *           expr {
+   *             type: MethodCall
+   *             methodCall {
+   *               receiver ...
+   *               signature {
+   *                 name: "nativeCode"
+   *                 owner ... // eventually this will be in a standard location
+   *                 paramType ...
+   *                 returnType ...
+   *               }
+   *               argument {
+   *                 type: Literal
+   *                 literal {
+   *                   type: String
+   *                   stringValue: " return x+y; " // code lives here
+   *                 }
+   *               }
+   *             }
+   *           }
+   *         }
+   *       }
+   *     }
+   *   }
+   * }
+   * 
    */
   private static String jsniGetNativeCode(Method m) {
     // disallow native methods with Nothing as a return type
@@ -1118,7 +1137,8 @@ public class JribbleAstBuilder {
     if (returnType.hasNamedType()) {
       GlobalName ret = returnType.getNamedType();
       if ("scala".equals(ret.getPkg()) && "Nothing".equals(ret.getName())) {
-        throw new InternalCompilerException("native method cannot have return type of Nothing");
+        throw new InternalCompilerException("native method '" + m.getName()
+            + "' cannot have return type of Nothing");
       }
     }
     
@@ -1133,16 +1153,18 @@ public class JribbleAstBuilder {
       if (//!"scala.util".equals(sig.getOwner().getPkg()) ||
           //!"package$".equals(sig.getOwner().getName()) ||
           !"nativeCode".equals(sig.getName())) {
-        throw new InternalCompilerException("native method body must be a call to 'nativeCode'");
+        throw new InternalCompilerException("native method '" + m.getName()
+            + "' must contain a call to 'nativeCode'");
       }
-      Expr argument = call.getArgument(0);      
-      Literal literal = argument.getLiteral();      
+      Expr argument = call.getArgument(0);
+      Literal literal = argument.getLiteral();
       return literal.getStringValue();
       
     } catch (InternalCompilerException e) {
       throw e;
     } catch (Exception e) {
-      throw new InternalCompilerException("error while processing native method", e);
+      throw new InternalCompilerException("native method '" + m.getName()
+          + "' is invalid.  Must contain a call to 'nativeCode' with a single literal string argument", e);
     }
   }
   
