@@ -1,0 +1,26 @@
+class Bar extends Object {
+  private static final void $clinit(){
+    Object.$clinit();
+  }
+
+  private final void $init(){
+  }
+
+  public Class getClass(){
+    return Bar.class;
+  }
+
+  void zaz(){
+    String[][] aa = new String[][][1][1];
+    aa[0][0] = "s";
+    String[] a = new String[] {"1", "2"};
+    a[0] = "0";
+    String[] b = new String[] {};
+  }
+
+  public Bar(){
+    this.$init();
+    super();
+  }
+
+}
