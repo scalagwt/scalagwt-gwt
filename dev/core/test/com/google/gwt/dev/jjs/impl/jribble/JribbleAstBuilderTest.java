@@ -15,6 +15,7 @@ package com.google.gwt.dev.jjs.impl.jribble;
 
 import static com.google.gwt.dev.jjs.impl.jribble.AstUtils.*;
 
+import com.google.gwt.dev.javac.JsniMethod;
 import com.google.gwt.dev.jjs.ast.JClassType;
 import com.google.gwt.dev.jjs.ast.JDeclarationStatement;
 import com.google.gwt.dev.jjs.ast.JDeclaredType;
@@ -370,6 +371,56 @@ public class JribbleAstBuilderTest extends TestCase {
     Assert.assertEquals("alert(Ljava/lang/String;)V", call.getTarget().getSignature());
   }
 
+  public void testNativeMethod() throws Exception {
+    DeclaredTypeBuilder foo = new DeclaredTypeBuilder("foo.Bar", false);
+
+    // ref and signature for the call to nativeCode
+    Expr nativeCodeRef = fieldRef(null, "scala.util.package$", "MODULE$",
+        toGlobalNameType("scala.runtime.package$"));
+    
+    MethodSignature nativeSig = signature("scala.util.package$", "nativeCode",
+        asList(toGlobalNameType("java.lang.String")), toGlobalNameType("scala.runtime.Nothing$"));
+    
+    // modifiers for public native methods
+    Modifiers modifiers = Modifiers.newBuilder().setIsPublic(true).setIsNative(true).build();
+    
+    // zaz method: no params, returns string
+    MethodDefBuilder zaz = new MethodDefBuilder("zaz");
+    zaz.stmts = asList(statement(methodCall(nativeCodeRef, nativeSig, literal("return 'jsni';"))));
+    zaz.returnType = toGlobalNameType("java.lang.String");
+    Declaration zazDecl = declaration(modifiers, zaz.build());
+
+    // add method
+    MethodDefBuilder add = new MethodDefBuilder("add");
+    add.params = asList(paramDef("x", primitive(PrimitiveType.Int)),
+                        paramDef("y", primitive(PrimitiveType.Int)));
+    add.stmts = asList(statement(methodCall(nativeCodeRef, nativeSig, literal("return x + y"))));
+    add.returnType = primitive(PrimitiveType.Int);    
+    Declaration addDecl = declaration(modifiers, add.build());
+    
+    foo.classBody = asList(zazDecl, addDecl, foo.defaultCstr);
+
+    // process the jribble manually since we need to look at jsniMethods
+    //JDeclaredType fooType = process(foo);
+    JribbleAstBuilder.Result result = new JribbleAstBuilder().process(foo.build());
+    JDeclaredType fooType = result.types.get(0);
+    List<JsniMethod> jsniMethods = result.jsniMethods;
+    
+    assertEquals(fooType, "testNativeMethod");
+    
+    assertEquals(jsniMethods.size(), 2);
+    
+    JsniMethod zazMethod = jsniMethods.get(0);
+    assertNotNull(zazMethod.function());
+    assertEquals(zazMethod.paramNames().length, 0);
+
+    JsniMethod addMethod = jsniMethods.get(1);
+    assertNotNull(addMethod.function());
+    assertEquals(addMethod.paramNames().length, 2);
+    assertEquals(addMethod.paramNames()[0], "x");
+    assertEquals(addMethod.paramNames()[1], "y");
+  }
+  
   public void testNewCall() throws Exception {
     DeclaredTypeBuilder foo = new DeclaredTypeBuilder("foo.Bar", false);
     MethodDefBuilder zaz = new MethodDefBuilder("zaz");
