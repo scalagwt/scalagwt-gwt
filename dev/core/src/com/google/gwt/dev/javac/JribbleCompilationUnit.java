@@ -43,6 +43,7 @@ public class JribbleCompilationUnit extends CompilationUnit {
   private JDeclaredType declaredType;
   private Dependencies dependencies;
   private MethodArgNamesLookup methodArgNamesLookup;
+  private List<JsniMethod> jsniMethods;
   private final Resource resource;
 
   public JribbleCompilationUnit(Resource resource, CompiledClass compiledClass) {
@@ -71,7 +72,10 @@ public class JribbleCompilationUnit extends CompilationUnit {
 
   @Override
   public List<JsniMethod> getJsniMethods() {
-    return Collections.emptyList();
+    if (jsniMethods == null) {
+      loadFromJribble();
+    }
+    return jsniMethods;
   }
 
   @Override
@@ -177,6 +181,7 @@ public class JribbleCompilationUnit extends CompilationUnit {
       dependencies =
           Dependencies.buildFromApiRefs(packageName, new ArrayList<String>(result.apiRefs));
       methodArgNamesLookup = result.methodArgNames;
+      jsniMethods = result.jsniMethods;
       declaredType = result.types.get(0);
     } catch (IOException ex) {
       throw new RuntimeException("Unexpected error while deserializing a Jribble file", ex);
