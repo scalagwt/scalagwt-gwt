@@ -216,7 +216,11 @@ abstract class AbstractFieldWriter implements FieldWriter {
     // Check initializer.
     if (initializer == null) {
       if (ownerField != null && ownerField.isProvided()) {
-        initializer = String.format("owner.%s", name);
+        if (ownerField.getGetterMethod() != null) {
+          initializer = String.format("owner.%s()", ownerField.getGetterMethod().getName());
+        } else {
+          initializer = String.format("owner.%s", name);
+        }
       } else {
         JClassType type = getInstantiableType();
         if (type != null) {

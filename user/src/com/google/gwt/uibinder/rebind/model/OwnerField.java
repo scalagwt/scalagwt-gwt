@@ -37,6 +37,7 @@ public class OwnerField {
   private final OwnerFieldClass fieldType;
   private final boolean isProvided;
   private final JMethod setterMethod;
+  private final JMethod getterMethod;
 
   /**
    * Constructor.
@@ -47,7 +48,7 @@ public class OwnerField {
    */
   public OwnerField(JField field, MortalLogger logger, UiBinderContext context)
             throws UnableToCompleteException {
-      this(field, logger, context, null);
+      this(field, logger, context, null, null);
   }
 
   /**
@@ -57,11 +58,13 @@ public class OwnerField {
    * @param logger
    * @param context
    * @param setterMethod
+   * @param getterMethod
    */
-  public OwnerField(JField field, MortalLogger logger, UiBinderContext context, JMethod setterMethod)
+  public OwnerField(JField field, MortalLogger logger, UiBinderContext context, JMethod setterMethod, JMethod getterMethod)
       throws UnableToCompleteException {
     this.name = field.getName();
     this.setterMethod = setterMethod;
+    this.getterMethod = getterMethod;
 
     // Get the field type and ensure it's a class or interface
     JClassType fieldClassType = field.getType().isClassOrInterface();
@@ -97,6 +100,14 @@ public class OwnerField {
   public JClassType getRawType() {
     // This shorten getType().getRawType() and make tests easier.
     return getType().getRawType();
+  }
+
+  /**
+   * Returns the getter method used to get this field if one exists.
+   * If null then get the field reguarly.
+   */
+  public JMethod getGetterMethod() {
+    return getterMethod;
   }
 
   /**

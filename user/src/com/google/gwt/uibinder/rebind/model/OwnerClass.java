@@ -213,6 +213,7 @@ public class OwnerClass {
         }
 
         JMethod setterMethod = null;
+        JMethod getterMethod = null;
         for (JMethod method : methods) {
           if (isSetterMethodForField(method, ownerFieldType, field.getName())) {
             if (setterMethod != null) {
@@ -222,9 +223,14 @@ public class OwnerClass {
 
             setterMethod = method;
           }
+          if (isGetterMethodForField(method, ownerFieldType, field.getName())) {
+            if (getterMethod == null || method.getName().length() < getterMethod.getName().length()) {
+              getterMethod = method;
+            }
+          }
         }
 
-        OwnerField ownerField = new OwnerField(field, logger, context, setterMethod);
+        OwnerField ownerField = new OwnerField(field, logger, context, setterMethod, getterMethod);
         String ownerFieldName = field.getName();
 
         uiFields.put(ownerFieldName, ownerField);
@@ -258,6 +264,22 @@ public class OwnerClass {
     if (superclass != null) {
       findUiHandlers(superclass);
     }
+  }
+
+  /**
+   * Returns true iff method is a no parameter method that returns a {@param type}
+   * and its name contains the {@param fieldName}.
+   */
+  private boolean isGetterMethodForField(JMethod method, JClassType type, String fieldName) {
+    if (!method.getName().toUpperCase().contains(fieldName.toUpperCase())) {
+        return false;
+    }
+
+    if (method.getReturnType() != type) {
+        return false;
+    }
+
+    return method.getParameterTypes().length == 0;
   }
 
   /**
