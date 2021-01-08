@@ -21,6 +21,8 @@ import com.google.gwt.core.ext.typeinfo.JField;
 import com.google.gwt.core.ext.typeinfo.JGenericType;
 import com.google.gwt.core.ext.typeinfo.JMethod;
 import com.google.gwt.core.ext.typeinfo.JParameterizedType;
+import com.google.gwt.core.ext.typeinfo.JPrimitiveType;
+import com.google.gwt.core.ext.typeinfo.JType;
 import com.google.gwt.uibinder.client.UiFactory;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
@@ -167,7 +169,7 @@ public class OwnerClass {
           logger.die("Factory return type is not a class in method "
               + method.getName());
         }
-        
+
         JParameterizedType paramType = factoryType.isParameterized();
         if (paramType != null) {
           factoryType = paramType.getRawType();
@@ -199,6 +201,8 @@ public class OwnerClass {
   private void findUiFields(JClassType ownerType)
       throws UnableToCompleteException {
     JField[] fields = ownerType.getFields();
+    JMethod[] methods = ownerType.getMethods();
+
     for (JField field : fields) {
       if (field.isAnnotationPresent(UiField.class)) {
         JClassType ownerFieldType = field.getType().isClassOrInterface();
@@ -208,7 +212,25 @@ public class OwnerClass {
               + field.getName());
         }
 
-        OwnerField ownerField = new OwnerField(field, logger, context);
+        JMethod setterMethod = null;
+        JMethod getterMethod = null;
+        for (JMethod method : methods) {
+          if (isSetterMethodForField(method, ownerFieldType, field.getName())) {
+            if (setterMethod != null) {
+              logger.die("Found two reasonable setters for field: "
+                  + field.getName() + " setters: " + setterMethod.getName() + " & " + method.getName());
+            }
+
+            setterMethod = method;
+          }
+          if (isGetterMethodForField(method, ownerFieldType, field.getName())) {
+            if (getterMethod == null || method.getName().length() < getterMethod.getName().length()) {
+              getterMethod = method;
+            }
+          }
+        }
+
+        OwnerField ownerField = new OwnerField(field, logger, context, setterMethod, getterMethod);
         String ownerFieldName = field.getName();
 
         uiFields.put(ownerFieldName, ownerField);
@@ -242,5 +264,46 @@ public class OwnerClass {
     if (superclass != null) {
       findUiHandlers(superclass);
     }
+  }
+
+  /**
+   * Returns true iff method is a no parameter method that returns a {@param type}
+   * and its name contains the {@param fieldName}.
+   */
+  private boolean isGetterMethodForField(JMethod method, JClassType type, String fieldName) {
+    if (!method.getName().toUpperCase().contains(fieldName.toUpperCase())) {
+        return false;
+    }
+
+    if (method.getReturnType() != type) {
+        return false;
+    }
+
+    return method.getParameterTypes().length == 0;
+  }
+
+  /**
+   * Returns true iff method is a single parameter method that takes a {@param type}, returns
+   * nothing, and its name contains the {@param fieldName}.
+   */
+  private boolean isSetterMethodForField(JMethod method, JClassType type, String fieldName) {
+    if (!method.getName().toUpperCase().contains(fieldName.toUpperCase())) {
+        return false;
+    }
+
+    if (method.getReturnType() != JPrimitiveType.VOID) {
+        return false;
+    }
+
+    JType[] params = method.getParameterTypes();
+    if (params.length != 1) {
+      return false;
+    }
+
+    if (!(params[0] instanceof JClassType)) {
+      return false;
+    }
+
+    return type.isAssignableTo((JClassType) params[0]);
   }
 }

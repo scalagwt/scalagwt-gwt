@@ -1319,7 +1319,12 @@ public class UiBinderWriter implements Statements {
       /*
        * And initialize the field
        */
-      niceWriter.write("owner.%1$s = %2$s;", ownerField.getName(), templateField);
+
+      if (ownerField.getSetterMethod() != null) {
+        niceWriter.write("owner.%1$s(%2$s);", ownerField.getSetterMethod().getName(), templateField);
+      } else {
+        niceWriter.write("owner.%1$s = %2$s;", ownerField.getName(), templateField);
+      }
     } else {
       /*
        * But with @UiField(provided=true) the user builds it, so reverse the

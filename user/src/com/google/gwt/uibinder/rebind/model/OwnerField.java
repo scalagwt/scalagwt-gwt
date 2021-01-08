@@ -18,6 +18,7 @@ package com.google.gwt.uibinder.rebind.model;
 import com.google.gwt.core.ext.UnableToCompleteException;
 import com.google.gwt.core.ext.typeinfo.JClassType;
 import com.google.gwt.core.ext.typeinfo.JField;
+import com.google.gwt.core.ext.typeinfo.JMethod;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.rebind.MortalLogger;
 import com.google.gwt.uibinder.rebind.UiBinderContext;
@@ -35,17 +36,35 @@ public class OwnerField {
   private final String name;
   private final OwnerFieldClass fieldType;
   private final boolean isProvided;
+  private final JMethod setterMethod;
+  private final JMethod getterMethod;
 
   /**
    * Constructor.
    *
    * @param field the field of the owner class
    * @param logger
-   * @param context 
+   * @param context
    */
   public OwnerField(JField field, MortalLogger logger, UiBinderContext context)
+            throws UnableToCompleteException {
+      this(field, logger, context, null, null);
+  }
+
+  /**
+   * Constructor.
+   *
+   * @param field the field of the owner class
+   * @param logger
+   * @param context
+   * @param setterMethod
+   * @param getterMethod
+   */
+  public OwnerField(JField field, MortalLogger logger, UiBinderContext context, JMethod setterMethod, JMethod getterMethod)
       throws UnableToCompleteException {
     this.name = field.getName();
+    this.setterMethod = setterMethod;
+    this.getterMethod = getterMethod;
 
     // Get the field type and ensure it's a class or interface
     JClassType fieldClassType = field.getType().isClassOrInterface();
@@ -81,6 +100,22 @@ public class OwnerField {
   public JClassType getRawType() {
     // This shorten getType().getRawType() and make tests easier.
     return getType().getRawType();
+  }
+
+  /**
+   * Returns the getter method used to get this field if one exists.
+   * If null then get the field reguarly.
+   */
+  public JMethod getGetterMethod() {
+    return getterMethod;
+  }
+
+  /**
+   * Returns the setter method used to set this field if one exists.
+   * If null then set the field regularly.
+   */
+  public JMethod getSetterMethod() {
+    return setterMethod;
   }
 
   /**

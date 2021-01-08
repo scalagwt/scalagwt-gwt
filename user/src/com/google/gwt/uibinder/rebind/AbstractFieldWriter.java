@@ -216,7 +216,11 @@ abstract class AbstractFieldWriter implements FieldWriter {
     // Check initializer.
     if (initializer == null) {
       if (ownerField != null && ownerField.isProvided()) {
-        initializer = String.format("owner.%s", name);
+        if (ownerField.getGetterMethod() != null) {
+          initializer = String.format("owner.%s()", ownerField.getGetterMethod().getName());
+        } else {
+          initializer = String.format("owner.%s", name);
+        }
       } else {
         JClassType type = getInstantiableType();
         if (type != null) {
@@ -337,7 +341,12 @@ abstract class AbstractFieldWriter implements FieldWriter {
 
     if ((ownerField != null) && !ownerField.isProvided()) {
       w.newline();
-      w.write("owner.%1$s = %1$s;", name);
+
+      if (ownerField.getSetterMethod() != null) {
+        w.write("owner.%1$s(%2$s);", ownerField.getSetterMethod().getName(), name);
+      } else {
+        w.write("owner.%1$s = %2$s;", name, name);
+      }
     }
 
     w.newline();
